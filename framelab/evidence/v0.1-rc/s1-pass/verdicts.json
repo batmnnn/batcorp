@@ -1,0 +1,435 @@
+{
+  "scenario": {
+    "id": "s1-payer-drop",
+    "hash": "ab7862194db77c5dae0548094dd66e01fd69b2d045f1738e43a99fb527870f38"
+  },
+  "rule_pack": {
+    "id": "sidecar-policy@2e22ff0",
+    "hash": "c006002e5f435da4cd2fb5fbcd51c88b3b89a52284ff6158323e6fb818ee4a51"
+  },
+  "sidecar_build": {
+    "label": "observe",
+    "dir": "$FRAMELAB/.runs/builds/observe-a0d277d54605",
+    "commit": "2e22ff0a2898e69ea4bf5275bce1be8581a8582a",
+    "patches": [
+      {
+        "file": "patches/sidecar-observe.patch",
+        "sha256": "9afa2da059441f9704fec54f26c030479997c10418c102f184d98791d19e7de7"
+      }
+    ],
+    "buildHash": "a0d277d5460516f7dbeebe9fb6ec75d20a042cb96a1b0364a2eef52d0eea186f"
+  },
+  "overall": "PASS",
+  "exit_code": 0,
+  "disagreements": [],
+  "excluded_from_comparison": [
+    "absolute admission times (relative admission order is compared)",
+    "problem detail text (problem kinds are compared)",
+    "RPC timings, wall-clock times, explorer bootId",
+    "ports, run directories, container names"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "assertions": [
+        {
+          "assertion_id": "S1-A1",
+          "tx_role": "tx1",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx1"
+              },
+              "holds": true,
+              "detail": "tx1 admitted at 1793944277639"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "outside-newest-cancellation-set",
+                "tx_role": "tx1",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A2",
+          "tx_role": "tx2",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx2"
+              },
+              "holds": true,
+              "detail": "tx2 admitted at 1793944277718"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "outside-newest-cancellation-set",
+                "tx_role": "tx2",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A3",
+          "tx_role": "tx3",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "evicted",
+          "observed": "evicted",
+          "verdict": "EXPECTED_INVALIDATION",
+          "reasons": [
+            "expected evicted, observed evicted (raw Cancelled)",
+            "node reason: 0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx3"
+              },
+              "holds": true,
+              "detail": "tx3 admitted at 1793944277792"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "in-newest-cancellation-set",
+                "tx_role": "tx3",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A4",
+          "tx_role": "tx4",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "evicted",
+          "observed": "evicted",
+          "verdict": "EXPECTED_INVALIDATION",
+          "reasons": [
+            "expected evicted, observed evicted (raw Cancelled)",
+            "node reason: 0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx4"
+              },
+              "holds": true,
+              "detail": "tx4 admitted at 1793944277869"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "in-newest-cancellation-set",
+                "tx_role": "tx4",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A5",
+          "tx_role": "control",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "control"
+              },
+              "holds": true,
+              "detail": "control admitted at 1793944277997"
+            },
+            {
+              "precondition": {
+                "kind": "no-obligation-to",
+                "tx_role": "control",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "control owes payer 0 wei"
+            }
+          ]
+        }
+      ],
+      "overall": "PASS",
+      "counts": {
+        "declared": 5,
+        "executed": 5,
+        "inconclusive": 0,
+        "mismatches": 0
+      }
+    },
+    {
+      "run": 2,
+      "assertions": [
+        {
+          "assertion_id": "S1-A1",
+          "tx_role": "tx1",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx1"
+              },
+              "holds": true,
+              "detail": "tx1 admitted at 1793944288903"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "outside-newest-cancellation-set",
+                "tx_role": "tx1",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A2",
+          "tx_role": "tx2",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx2"
+              },
+              "holds": true,
+              "detail": "tx2 admitted at 1793944288976"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "outside-newest-cancellation-set",
+                "tx_role": "tx2",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A3",
+          "tx_role": "tx3",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "evicted",
+          "observed": "evicted",
+          "verdict": "EXPECTED_INVALIDATION",
+          "reasons": [
+            "expected evicted, observed evicted (raw Cancelled)",
+            "node reason: 0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx3"
+              },
+              "holds": true,
+              "detail": "tx3 admitted at 1793944289052"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "in-newest-cancellation-set",
+                "tx_role": "tx3",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A4",
+          "tx_role": "tx4",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "evicted",
+          "observed": "evicted",
+          "verdict": "EXPECTED_INVALIDATION",
+          "reasons": [
+            "expected evicted, observed evicted (raw Cancelled)",
+            "node reason: 0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "tx4"
+              },
+              "holds": true,
+              "detail": "tx4 admitted at 1793944289128"
+            },
+            {
+              "precondition": {
+                "kind": "obligations-exceed-balance",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "payer owes 205658000000000004 wei, balance 128706970665500000 wei"
+            },
+            {
+              "precondition": {
+                "kind": "in-newest-cancellation-set",
+                "tx_role": "tx4",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "cancellation set for payer: [tx4, tx3]"
+            }
+          ]
+        },
+        {
+          "assertion_id": "S1-A5",
+          "tx_role": "control",
+          "checkpoint_id": "cp-trigger",
+          "rule_ref": "SP-BAL-ENFORCE",
+          "expected": "pending",
+          "observed": "pending",
+          "verdict": "PASS",
+          "reasons": [
+            "expected pending, observed pending (raw New)"
+          ],
+          "preconditions": [
+            {
+              "precondition": {
+                "kind": "admitted",
+                "tx_role": "control"
+              },
+              "holds": true,
+              "detail": "control admitted at 1793944289205"
+            },
+            {
+              "precondition": {
+                "kind": "no-obligation-to",
+                "tx_role": "control",
+                "account": "payer"
+              },
+              "holds": true,
+              "detail": "control owes payer 0 wei"
+            }
+          ]
+        }
+      ],
+      "overall": "PASS",
+      "counts": {
+        "declared": 5,
+        "executed": 5,
+        "inconclusive": 0,
+        "mismatches": 0
+      }
+    }
+  ]
+}

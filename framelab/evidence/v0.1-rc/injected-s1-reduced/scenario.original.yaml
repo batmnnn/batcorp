@@ -1,0 +1,106 @@
+schema: framelab.scenario/v1
+id: s1-noisy
+description: >
+  S1 padded with ten removable noise steps on two unrelated actors (noise-a, noise-b), interleaved
+  with the payer's steps. Noise never touches the payer, so it cannot change S1's expected answer.
+  Used for G6 against the labelled local injected-regression build only.
+seed: s1-v1
+rule_pack: sidecar-policy@2e22ff0
+protocol_revisions:
+  eip8141: forshtat/ethrex@9aa3645d795945c64400f41a70aace0edfa7f383
+  policy: sidecar-policy@2e22ff0
+genesis:
+  sha256: 5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4
+  chain_id: 9
+actors:
+  - { role: payer, fund_wei: "10000000000000000000" }
+  - { role: control, fund_wei: "1000000000000000000" }
+  - { role: sink, fund_wei: "1" }
+  - { role: noise-a, fund_wei: "1000000000000000000" }
+  - { role: noise-b, fund_wei: "1000000000000000000" }
+steps:
+  - { id: fund, group: setup, action: fund, actors: [payer, control, sink] }
+  - { id: fund-noise, action: fund, actors: [noise-a, noise-b] }
+  - { id: cp-setup, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-setup, depends_on: [fund] }
+  - { id: noise-a-k1, action: submit, tx_role: noise-a1, actor: noise-a, nonce_key: "1", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: submit-tx1, action: submit, tx_role: tx1, actor: payer, nonce_key: "1", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: noise-b-k1, action: submit, tx_role: noise-b1, actor: noise-b, nonce_key: "1", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: submit-tx2, action: submit, tx_role: tx2, actor: payer, nonce_key: "2", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: noise-a-xfer, action: transfer, actor: noise-a, to: sink, amount: { wei: "1000" }, depends_on: [fund-noise, cp-setup] }
+  - { id: noise-a-k2, action: submit, tx_role: noise-a2, actor: noise-a, nonce_key: "2", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: submit-tx3, action: submit, tx_role: tx3, actor: payer, nonce_key: "3", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: noise-b-k2, action: submit, tx_role: noise-b2, actor: noise-b, nonce_key: "2", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: submit-tx4, action: submit, tx_role: tx4, actor: payer, nonce_key: "4", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: noise-a-k3, action: submit, tx_role: noise-a3, actor: noise-a, nonce_key: "3", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: submit-control, action: submit, tx_role: control, actor: control, nonce_key: "0", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: noise-b-k3, action: submit, tx_role: noise-b3, actor: noise-b, nonce_key: "3", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }
+  - { id: noise-b-xfer, action: transfer, actor: noise-b, to: sink, amount: { wei: "1000" }, depends_on: [fund-noise, cp-setup] }
+  - id: drain
+    action: transfer
+    actor: payer
+    to: sink
+    amount: { leave_max_cost_multiple: 2.5, of_tx_role: tx1 }
+    depends_on: [cp-setup, submit-tx1]
+  - { id: cp-trigger, action: advance-to-checkpoint, checkpoint_id: cp-trigger, depends_on: [drain] }
+expectations:
+  - assertion_id: S1-A1
+    tx_role: tx1
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-BAL-ENFORCE
+    derivation: >
+      payer funded -> tx1..tx4 admitted (oldest first), each owing max cost + 1 wei -> drain leaves
+      2.5x one max cost -> newest-first cancellation stops once the rest fit -> tx1 is outside the set.
+    preconditions:
+      - { kind: admitted, tx_role: tx1 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: outside-newest-cancellation-set, tx_role: tx1, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A2
+    tx_role: tx2
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as S1-A1; tx2 is the second oldest and stays outside the newest-first set.
+    preconditions:
+      - { kind: admitted, tx_role: tx2 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: outside-newest-cancellation-set, tx_role: tx2, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A3
+    tx_role: tx3
+    checkpoint_id: cp-trigger
+    expected: evicted
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as S1-A1; removing tx4 alone still leaves the payer short, so tx3 is cancelled too.
+    preconditions:
+      - { kind: admitted, tx_role: tx3 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: in-newest-cancellation-set, tx_role: tx3, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A4
+    tx_role: tx4
+    checkpoint_id: cp-trigger
+    expected: evicted
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as S1-A1; tx4 is the newest pending entry, so it is cancelled first.
+    preconditions:
+      - { kind: admitted, tx_role: tx4 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: in-newest-cancellation-set, tx_role: tx4, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A5
+    tx_role: control
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-BAL-ENFORCE
+    derivation: control owes nothing to payer and its own balance is untouched, so no rule removes it.
+    preconditions:
+      - { kind: admitted, tx_role: control }
+      - { kind: no-obligation-to, tx_role: control, account: payer }
+    evidence_required: [pass-completed, status]
+limits:
+  checkpoint_wait_ms: 20000
+  scenario_ms: 180000
+  shrink_candidates: 40
+  shrink_wall_ms: 1800000

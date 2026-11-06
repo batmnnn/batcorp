@@ -1,0 +1,1734 @@
+{
+  "target": {
+    "assertion_id": "S1-A1",
+    "verdict": "WRONGLY_EVICTED",
+    "tx_role": "tx1",
+    "rule_ref": "SP-BAL-ENFORCE",
+    "checkpoint_id": "cp-trigger"
+  },
+  "original": {
+    "total": 18,
+    "setup": 2,
+    "action": 15,
+    "checkpoints": 1,
+    "actors": 5,
+    "expectations": 5,
+    "hash": "4a90b998c91093ee6043434491fe15c04ab8bd2bbda7fa0ac7ec68750f4734c6"
+  },
+  "reduced": {
+    "total": 7,
+    "setup": 2,
+    "action": 4,
+    "checkpoints": 1,
+    "actors": 2,
+    "expectations": 2,
+    "hash": "334f0293d8ec9b9144c6690dacc6feb087194b2ea8c13abbeb60bddd337c5455",
+    "removed_units": [
+      "fund-noise",
+      "noise-a-k1",
+      "noise-b-k1",
+      "submit-tx2",
+      "noise-a-xfer",
+      "noise-a-k2",
+      "noise-b-k2",
+      "noise-a-k3",
+      "submit-control",
+      "noise-b-k3",
+      "noise-b-xfer"
+    ],
+    "removed_actors": [
+      "control",
+      "noise-a",
+      "noise-b"
+    ]
+  },
+  "candidates": [
+    {
+      "n": 1,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step submit-control depends on deleted step cp-setup",
+        "step noise-b-k3 depends on deleted step fund-noise",
+        "step noise-b-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step submit-control depends on cp-setup, which is not an earlier step",
+        "step noise-b-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 2,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "submit-tx3",
+        "noise-b-k2",
+        "submit-tx4",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "drain",
+        "cp-trigger"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "target S1-A1 lost its tx, checkpoint or account"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 3,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-a-k1",
+        "submit-tx1"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-b-k1 depends on deleted step fund-noise",
+        "step noise-b-k1 depends on deleted step cp-setup",
+        "step submit-tx2 depends on deleted step cp-setup",
+        "step noise-a-xfer depends on deleted step fund-noise",
+        "step noise-a-xfer depends on deleted step cp-setup",
+        "step noise-a-k2 depends on deleted step fund-noise",
+        "step noise-a-k2 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step submit-control depends on deleted step cp-setup",
+        "step noise-b-k3 depends on deleted step fund-noise",
+        "step noise-b-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step noise-b-k1 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx2 depends on cp-setup, which is not an earlier step",
+        "step noise-a-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-a-xfer depends on cp-setup, which is not an earlier step",
+        "step noise-a-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step submit-control depends on cp-setup, which is not an earlier step",
+        "step noise-b-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 4,
+      "phase": "steps",
+      "key": "18daaafac1ab8a76dfe135d2",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2"
+      ]
+    },
+    {
+      "n": 5,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step submit-control depends on deleted step cp-setup",
+        "step noise-b-k3 depends on deleted step fund-noise",
+        "step noise-b-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step submit-control depends on cp-setup, which is not an earlier step",
+        "step noise-b-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 6,
+      "phase": "steps",
+      "key": "980cd2989178890d9cdae55a",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "submit-tx4",
+        "noise-a-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "boring",
+      "reasons": [
+        "run 1: boring (target preconditions no longer hold: precondition obligations-exceed-balance does not hold: payer owes 51413000000000001 wei, balance 128706903192500000 wei)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A4"
+      ]
+    },
+    {
+      "n": 7,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "drain",
+        "cp-trigger"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "target S1-A1 lost its tx, checkpoint or account"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 8,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-a-k1 depends on deleted step fund-noise",
+        "step noise-a-k1 depends on deleted step cp-setup",
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step submit-control depends on deleted step cp-setup",
+        "step noise-b-k3 depends on deleted step fund-noise",
+        "step noise-b-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step noise-a-k1 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step submit-control depends on cp-setup, which is not an earlier step",
+        "step noise-b-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": []
+    },
+    {
+      "n": 9,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 10,
+      "phase": "steps",
+      "key": "c0e933434aba61477465c17e",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2"
+      ],
+      "removed_actors": [],
+      "outcome": "boring",
+      "reasons": [
+        "run 1: boring (target preconditions no longer hold: precondition obligations-exceed-balance does not hold: payer owes 102832000000000002 wei, balance 128706903192500000 wei)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3"
+      ]
+    },
+    {
+      "n": 11,
+      "phase": "steps",
+      "key": "79242c60e182f8ba6898e087",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx4",
+        "noise-a-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "boring",
+      "reasons": [
+        "run 1: boring (target preconditions no longer hold: precondition obligations-exceed-balance does not hold: payer owes 102826000000000002 wei, balance 128706903192500000 wei)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4"
+      ]
+    },
+    {
+      "n": 12,
+      "phase": "steps",
+      "key": "b421430e10c03b8f012c3655",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 13,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-a-k1 depends on deleted step fund-noise",
+        "step noise-a-k1 depends on deleted step cp-setup",
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step noise-a-k1 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 14,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 15,
+      "phase": "steps",
+      "key": "c4ddc3c575516f18831b5e30",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11158,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 16,
+      "phase": "steps",
+      "key": "359d0be3e49ff0c1344d512d",
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx4",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11310,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 17,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "drain",
+        "cp-trigger"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "target S1-A1 lost its tx, checkpoint or account"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 18,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-a-k1 depends on deleted step cp-setup",
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step noise-a-k1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": []
+    },
+    {
+      "n": 19,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-a-k1 depends on deleted step fund-noise",
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-a-k1 depends on fund-noise, which is not an earlier step",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 20,
+      "phase": "steps",
+      "key": "417b025caa0b15fcfaa9208c",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 21,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step noise-b-k2 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-k2 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 22,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-b-k2 depends on deleted step fund-noise",
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-k2 depends on fund-noise, which is not an earlier step",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": []
+    },
+    {
+      "n": 23,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 24,
+      "phase": "steps",
+      "key": "299376b057108606c6fcdb40",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11553,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 25,
+      "phase": "steps",
+      "key": "e6e96b5247b906da8ac4fe8b",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 2,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 26,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-a-k3 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-a-k3 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 27,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-a-k3 depends on deleted step fund-noise",
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-a-k3 depends on fund-noise, which is not an earlier step",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 28,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 29,
+      "phase": "steps",
+      "key": "6c77803765b6609e852ac892",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11156,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 30,
+      "phase": "steps",
+      "key": "475a9e46ba352a1d6326b7d5",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-tx4",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11103,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 31,
+      "phase": "steps",
+      "key": "554a6e6c19b6011120b3a86d",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 32,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step noise-b-xfer depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step noise-b-xfer depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 33,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step noise-b-xfer depends on deleted step fund-noise",
+        "step noise-b-xfer depends on fund-noise, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 34,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 35,
+      "phase": "steps",
+      "key": "258b4e42503216a415315c27",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11130,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 36,
+      "phase": "steps",
+      "key": "b8d077cf270e52775499a594",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-tx4",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11131,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 37,
+      "phase": "steps",
+      "key": "9ff2acfcea307721f08d0b4c",
+      "removed_units": [
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 38,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 39,
+      "phase": "steps",
+      "key": "6ff9da385bb24d4df00df297",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 40,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 41,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 42,
+      "phase": "steps",
+      "key": "422326bc25b8a44ad313db69",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 10874,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 43,
+      "phase": "steps",
+      "key": "9aeb36730241f23506d89d43",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-tx4",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": false,
+      "runs": 1,
+      "ms": 11249,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 44,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "drain",
+        "cp-trigger"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "target S1-A1 lost its tx, checkpoint or account"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 45,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "group:setup",
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step submit-tx1 depends on deleted step cp-setup",
+        "step submit-tx3 depends on deleted step cp-setup",
+        "step submit-tx4 depends on deleted step cp-setup",
+        "step drain depends on deleted step cp-setup",
+        "step submit-tx1 depends on cp-setup, which is not an earlier step",
+        "step submit-tx3 depends on cp-setup, which is not an earlier step",
+        "step submit-tx4 depends on cp-setup, which is not an earlier step",
+        "step drain depends on cp-setup, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 46,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "submit-tx1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step drain depends on deleted step submit-tx1",
+        "target S1-A1 lost its tx, checkpoint or account",
+        "step drain depends on submit-tx1, which is not an earlier step",
+        "step drain: amount refers to tx1, which is not submitted earlier"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 47,
+      "phase": "steps",
+      "key": "422326bc25b8a44ad313db69",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "submit-tx3",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A3",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 48,
+      "phase": "steps",
+      "key": "9aeb36730241f23506d89d43",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "submit-tx4",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [],
+      "outcome": "unresolved",
+      "reasons": [
+        "run 1: unresolved (zero assertions executed)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A4",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 49,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "drain"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "step cp-trigger depends on deleted step drain",
+        "step cp-trigger depends on drain, which is not an earlier step"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 0,
+      "dropped_expectations": []
+    },
+    {
+      "n": 50,
+      "phase": "steps",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer",
+        "cp-trigger"
+      ],
+      "removed_actors": [],
+      "outcome": "invalid",
+      "reasons": [
+        "target S1-A1 lost its tx, checkpoint or account"
+      ],
+      "cached": false,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": []
+    },
+    {
+      "n": 51,
+      "phase": "actors",
+      "key": "329b95185fe2b3cb1156e408",
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [
+        "control",
+        "noise-a",
+        "noise-b"
+      ],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)"
+      ],
+      "cached": true,
+      "runs": 0,
+      "ms": 1,
+      "dropped_expectations": [
+        "S1-A2",
+        "S1-A5"
+      ]
+    },
+    {
+      "n": 52,
+      "phase": "final-confirm",
+      "key": null,
+      "removed_units": [
+        "fund-noise",
+        "noise-a-k1",
+        "noise-b-k1",
+        "submit-tx2",
+        "noise-a-xfer",
+        "noise-a-k2",
+        "noise-b-k2",
+        "noise-a-k3",
+        "submit-control",
+        "noise-b-k3",
+        "noise-b-xfer"
+      ],
+      "removed_actors": [
+        "control",
+        "noise-a",
+        "noise-b"
+      ],
+      "outcome": "interesting",
+      "reasons": [
+        "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+        "run 2: interesting (S1-A1 WRONGLY_EVICTED)",
+        "removed S1-A3: preconditions measured false on both runs; re-judged FAIL, S1-A1 WRONGLY_EVICTED / FAIL, S1-A1 WRONGLY_EVICTED"
+      ],
+      "cached": false,
+      "runs": 2,
+      "ms": 22340,
+      "dropped_expectations": []
+    }
+  ],
+  "totals": {
+    "node_tested": 9,
+    "kept": 8,
+    "boring": 3,
+    "unresolved": 11,
+    "invalid": 29,
+    "cached": 13
+  },
+  "budget": {
+    "candidates_limit": 40,
+    "wall_limit_ms": 1800000,
+    "wall_used_ms": 123028,
+    "confirm_reserve_ms": 23288
+  },
+  "stop_reason": "complete",
+  "final_confirmation": {
+    "outcome": "interesting",
+    "reasons": [
+      "run 1: interesting (S1-A1 WRONGLY_EVICTED)",
+      "run 2: interesting (S1-A1 WRONGLY_EVICTED)",
+      "removed S1-A3: preconditions measured false on both runs; re-judged FAIL, S1-A1 WRONGLY_EVICTED / FAIL, S1-A1 WRONGLY_EVICTED"
+    ]
+  },
+  "pruned_expectations": [
+    "S1-A3"
+  ],
+  "single_deletions": {
+    "permitted": 2,
+    "boring": 0,
+    "unresolved": 2
+  },
+  "one_minimal": false,
+  "claim": "Smallest found: 7 steps (2 setup, 4 action, 1 checkpoint) from 18. 2 permitted single deletions of the final step set were tested: 0 did not reproduce, 2 unresolved. Not shown to be 1-minimal. Not a global minimum."
+}

@@ -1,0 +1,126 @@
+{
+  "run": 2,
+  "checkpoints": {
+    "cp-setup": {
+      "checkpoint_id": "cp-setup",
+      "block": {
+        "number": "1",
+        "hash": "0xd2ebb1ba506147f830eb16375b5b6f2d9dbf4b4d9b3daf202d0b7c768232d4bb",
+        "timestamp": "1718040093"
+      },
+      "pass": {
+        "completed": true,
+        "block": "1",
+        "revalidated": [],
+        "balance_cancelled": []
+      },
+      "pending_before": [],
+      "txs": {},
+      "addresses": {
+        "payer": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+        "control": "0x7Bb5e7f245f5Eb283D21568b5A82ac914338a866",
+        "sink": "0xC10b24B534AF0DF686d7Bad0c1dB306a5c8d5db2"
+      },
+      "balances": {
+        "payer": "10000000000000000000",
+        "control": "1000000000000000000",
+        "sink": "1"
+      }
+    },
+    "cp-trigger": {
+      "checkpoint_id": "cp-trigger",
+      "block": {
+        "number": "2",
+        "hash": "0xdf0ff89ba1ba2c0f115f3850a9727da5c6ab97b80b7dbbe8c911594ad7cc94f7",
+        "timestamp": "1718040105"
+      },
+      "pass": {
+        "completed": true,
+        "block": "2",
+        "revalidated": [
+          "0xd0bcc1032bb6dc402cbc6f365d06cf064789f4c0ef0604b6a4a3e2f0a2271f94",
+          "0x2602e23a54612e7222c21a14a38c278ebfb2674e5dd33dba6d7da1748260064b",
+          "0x2814e0b704bcfb0491899fb37927dba004b523955a74cb7dcf31abc688c10fc2",
+          "0x0a0af7ec2cac8721261190f3cea564eedfede056c8725d3949c0bdf3dd50ba36",
+          "0xdde4ce426e5cc69aa842d0cf0537c0e31f5ad17e3eaf0a0e719482c438ea1dab"
+        ],
+        "balance_cancelled": [
+          "0x0a0af7ec2cac8721261190f3cea564eedfede056c8725d3949c0bdf3dd50ba36",
+          "0x2814e0b704bcfb0491899fb37927dba004b523955a74cb7dcf31abc688c10fc2"
+        ]
+      },
+      "pending_before": [
+        "tx1",
+        "tx2",
+        "tx3",
+        "tx4",
+        "control"
+      ],
+      "txs": {
+        "tx1": {
+          "fate": "pending",
+          "sender": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+          "sender_value": "1",
+          "payer": "0x03612217b93cd70c4b439dd05488ee2fb04470c1",
+          "max_cost": "51413000000000000",
+          "hash": "0xd0bcc1032bb6dc402cbc6f365d06cf064789f4c0ef0604b6a4a3e2f0a2271f94",
+          "admitted_at": 1793944288903,
+          "raw_status": "New"
+        },
+        "tx2": {
+          "fate": "pending",
+          "sender": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+          "sender_value": "1",
+          "payer": "0x03612217b93cd70c4b439dd05488ee2fb04470c1",
+          "max_cost": "51413000000000000",
+          "hash": "0x2602e23a54612e7222c21a14a38c278ebfb2674e5dd33dba6d7da1748260064b",
+          "admitted_at": 1793944288976,
+          "raw_status": "New"
+        },
+        "tx3": {
+          "fate": "evicted",
+          "sender": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+          "sender_value": "1",
+          "payer": "0x03612217b93cd70c4b439dd05488ee2fb04470c1",
+          "max_cost": "51413000000000000",
+          "hash": "0x2814e0b704bcfb0491899fb37927dba004b523955a74cb7dcf31abc688c10fc2",
+          "admitted_at": 1793944289052,
+          "raw_status": "Cancelled",
+          "revert_reason": "0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+        },
+        "tx4": {
+          "fate": "evicted",
+          "sender": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+          "sender_value": "1",
+          "payer": "0x03612217b93cd70c4b439dd05488ee2fb04470c1",
+          "max_cost": "51419000000000000",
+          "hash": "0x0a0af7ec2cac8721261190f3cea564eedfede056c8725d3949c0bdf3dd50ba36",
+          "admitted_at": 1793944289128,
+          "raw_status": "Cancelled",
+          "revert_reason": "0x03612217B93cD70c4b439dD05488EE2FB04470C1 can no longer cover its pending frame transactions as of block 2: balance 128706970665500000 wei"
+        },
+        "control": {
+          "fate": "pending",
+          "sender": "0x7Bb5e7f245f5Eb283D21568b5A82ac914338a866",
+          "sender_value": "1",
+          "payer": "0x7bb5e7f245f5eb283d21568b5a82ac914338a866",
+          "max_cost": "51413000000000000",
+          "hash": "0xdde4ce426e5cc69aa842d0cf0537c0e31f5ad17e3eaf0a0e719482c438ea1dab",
+          "admitted_at": 1793944289205,
+          "raw_status": "New"
+        }
+      },
+      "addresses": {
+        "payer": "0x03612217B93cD70c4b439dD05488EE2FB04470C1",
+        "control": "0x7Bb5e7f245f5Eb283D21568b5A82ac914338a866",
+        "sink": "0xC10b24B534AF0DF686d7Bad0c1dB306a5c8d5db2"
+      },
+      "balances": {
+        "payer": "128706970665500000",
+        "control": "1000000000000000000",
+        "sink": "9871255850000000001"
+      }
+    }
+  },
+  "problems": []
+}

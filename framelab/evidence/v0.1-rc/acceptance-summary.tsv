@@ -1,0 +1,54 @@
+a0-test	ok	exit 0 (expected 0)	0s	unit tests (oracle, reducer, projection, compatibility, bundle)
+a0-typecheck	ok	exit 0 (expected 0)	1s	typecheck
+a1-s1	ok	exit 0 (expected 0)	23s	fresh S1 run
+a1-s1-facts	ok	PASS on both runs, 5/5 and 5/5 executed, projections agree; expected invalidations (green): S1-A3, S1-A4	0s	S1: reached assertions, agreeing projections, expected invalidation is green
+a1-s2	ok	exit 0 (expected 0)	39s	fresh S2 run
+a1-s2-facts	ok	PASS on both runs, 2/2 and 2/2 executed, projections agree; expected invalidations (green): S2-A1	0s	S2: reached assertions, agreeing projections
+a2	ok	exit 1 (expected 1)	23s	flipped S1-A2 expectation fails
+a2-facts	ok	FAIL on both runs at S1-A2 only, ASSERTION_MISMATCH, labelled "wrong test expectation"	0s	fails at S1-A2 only, labelled a wrong test expectation
+a3-zero	ok	exit 2 (expected 2)	22s	zero reached assertions
+a3-zero-facts	ok	INCONCLUSIVE, exit 2: S1-A1: precondition obligations-exceed-balance does not hold: payer owes 205658000000000004 wei, balance 10000000000000000000 wei	0s	zero assertions is INCONCLUSIVE
+a3-skip	ok	exit 2 (expected 2)	15s	skipped required checkpoint
+a3-skip-facts	ok	INCONCLUSIVE, exit 2: fault skip-checkpoint@cp-trigger	0s	skipped checkpoint is INCONCLUSIVE
+a3-transport	ok	exit 2 (expected 2)	14s	transport failure (sidecar killed)
+a3-transport-facts	ok	INCONCLUSIVE, exit 2: fault sidecar-down@cp-trigger	0s	transport failure is INCONCLUSIVE
+a3-timeout	ok	exit 2 (expected 2)	8s	pass timeout
+a3-timeout-facts	ok	INCONCLUSIVE, exit 2: S1-A1: pass-timeout: timed out after 1 ms waiting for reconcile pass for block 2	0s	pass timeout is INCONCLUSIVE
+a3-restart	ok	exit 2 (expected 2)	25s	sidecar restart (history gap)
+a3-restart-facts	ok	INCONCLUSIVE, exit 2: fault sidecar-restart@cp-trigger	0s	restart is INCONCLUSIVE
+a3-inconsistent	ok	exit 2 (expected 2)	23s	inconsistent double run (run 2 on the injected build)
+a3-inconsistent-facts	ok	INCONCLUSIVE, exit 2: S1-A1: run 1 PASS/pending vs run 2 WRONGLY_EVICTED/evicted	0s	inconsistent runs are INCONCLUSIVE
+a4	ok	exit 1 (expected 1)	146s	s1-noisy on the LOCAL INJECTED build, then shrink
+a4-facts	ok	S1-A1 WRONGLY_EVICTED on both original runs; 18 -> 7 steps, final two fresh runs reproduce; rejected: 29 invalid, 3 other outcome, 11 unresolved; stop complete	0s	same failure on both runs; smaller case reproduces on two fresh runs
+a5-export	ok	exit 0 (expected 0)	0s	export the shrink result
+a5-clean	ok	22 files, all in SHA256SUMS (manifest.json included); none contains any of 13 engine JWTs from the runs	0s	bundle holds only checksummed files and no engine JWT
+a5-pins	ok	exit 0 (expected 0)	0s	check-pins on the bundle
+a5-replay	ok	exit 1 (expected 1)	23s	replay.sh reproduces the recorded FAIL
+a5-untouched	ok	22 files, all in SHA256SUMS (manifest.json included); none contains any of 15 engine JWTs from the runs	0s	replay left the bundle folder unchanged
+a5-tamper-scenario	ok	exit 2 (expected 2)	0s	replay refuses a bundle with a tampered scenario
+a5-tamper-scenario-no-node	ok	not created	0s	no node run for the tampered scenario
+a5-tamper-missing-pin	ok	exit 2 (expected 2)	0s	replay refuses a bundle with a tampered missing-pin
+a5-tamper-missing-pin-no-node	ok	not created	0s	no node run for the tampered missing-pin
+a5-tamper-manifest	ok	exit 2 (expected 2)	0s	replay refuses a bundle with a tampered manifest
+a5-tamper-manifest-no-node	ok	not created	0s	no node run for the tampered manifest
+a5-tamper-sidecar-pin	ok	exit 2 (expected 2)	0s	replay refuses a bundle with a tampered sidecar-pin
+a5-tamper-sidecar-pin-no-node	ok	not created	0s	no node run for the tampered sidecar-pin
+a5-tamper-patch	ok	exit 2 (expected 2)	1s	replay refuses a bundle with a tampered patch
+a5-tamper-patch-no-node	ok	not created	0s	no node run for the tampered patch
+a6-plant	ok	exit 2 (expected 2)	0s	export of a run with planted secrets is refused
+a6-refused	ok	export refused; planted token and planted environment secret both reported; no bundle folder	0s	both planted secrets found; no bundle left
+a6-s1-export	ok	exit 0 (expected 0)	0s	export the fresh S1 run
+a6-s1-clean	ok	20 files, all in SHA256SUMS (manifest.json included); none contains any of 2 engine JWTs from the runs	0s	S1 bundle holds no engine JWT
+a7-fixed	ok	exit 0 (expected 0)	23s	reduced case on the unpatched build
+a7-compare	ok	exit 0 (expected 0)	0s	compare bundle vs fixed run
+a7-facts	ok	S1-A1 WRONGLY_EVICTED/evicted -> PASS/pending; builds 15b346123957 vs a0d277d54605	0s	target now passes on a different build; expectations unchanged
+a7-mismatch	ok	exit 2 (expected 2)	0s	compare refuses an unrelated pair
+a8-page	ok	HTTP 200 (expected 200)	0s	viewer page on the local origin
+a8-host	ok	HTTP 403 (expected 403)	0s	foreign Host header refused
+a8-post	ok	HTTP 403 (expected 403)	0s	POST without the FrameLab header refused
+a8-path	ok	HTTP 403 (expected 403)	0s	path outside bundles/ and .runs/ refused
+a8-dotdot	ok	HTTP 403 (expected 403)	0s	relative escape refused
+a8-stopped	ok	not answering	0s	test server stopped
+a9	ok	exit 2 (expected 2)	0s	current-codec scenario is INCONCLUSIVE before any node starts
+a9-facts	ok	not applicable, INCONCLUSIVE exit 2, no run started: scenario targets EIP-8141 codec ethereum/EIPs@master:EIPS/eip-8141.md; this target implements forshtat/ethrex@9aa3645d795945c64400f41a70aace0edfa7f383, so its t	0s	not applicable, no run started
+a9-export	ok	exit 2 (expected 2)	0s	export refuses a not-applicable result

@@ -1,0 +1,135 @@
+{
+  "schema": "framelab.bundle/v1",
+  "tool": {
+    "name": "framelab",
+    "version": "0.0.1",
+    "commit": "d2d3beca038e6136976546e69d5d9bfb98e655a8",
+    "dirty": false,
+    "bun": "1.3.14"
+  },
+  "source_mode": "real-node",
+  "scenario": {
+    "id": "s1-payer-drop",
+    "hash": "ab7862194db77c5dae0548094dd66e01fd69b2d045f1738e43a99fb527870f38",
+    "replay_file": "scenario.original.yaml"
+  },
+  "rule_pack": {
+    "id": "sidecar-policy@2e22ff0",
+    "hash": "c006002e5f435da4cd2fb5fbcd51c88b3b89a52284ff6158323e6fb818ee4a51",
+    "source_revision": "https://github.com/forshtat/mempool-workshop-sidecar@2e22ff0a2898e69ea4bf5275bce1be8581a8582a"
+  },
+  "genesis": {
+    "sha256": "5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4",
+    "chain_id": 9,
+    "genesis_hash": "0x8d823c24eca211324f1058c6b8dcb6f6c567f68157a52d81847d6f8e25619962",
+    "fork_schedule": "l1-hegota.json: every fork through Hegota at time 0"
+  },
+  "node": {
+    "image": "framelab/ethrex:9aa3645d-arm64-release-fast",
+    "image_id": "sha256:ee5838be22d4074cb13c820a472cf59bbbacc7698532ec3c5851a3d061d157f6",
+    "client_version": "ethrex/v23.0.0-eip8141-tracer-9aa3645d795945c64400f41a70aace0edfa7f383/aarch64-unknown-linux-gnu/rustc-v1.93.1",
+    "genesis_hash": "0x8d823c24eca211324f1058c6b8dcb6f6c567f68157a52d81847d6f8e25619962",
+    "chain_id": 9,
+    "startup_ms": 475,
+    "pinned_commit": "9aa3645d795945c64400f41a70aace0edfa7f383",
+    "genesis_sha256": "5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4",
+    "published_image_not_run": "ghcr.io/forshtat/eip8141-devnet@sha256:c9a7770f892e02255999e1c0ffd596ecee704d9175c2480811ccdcfa1c2224c6 (does not start under Rosetta; V12)"
+  },
+  "sidecar": {
+    "repo": "https://github.com/forshtat/mempool-workshop-sidecar",
+    "commit": "2e22ff0a2898e69ea4bf5275bce1be8581a8582a",
+    "build_hash": "a0d277d5460516f7dbeebe9fb6ec75d20a042cb96a1b0364a2eef52d0eea186f",
+    "patches": [
+      {
+        "file": "patches/sidecar-observe.patch",
+        "sha256": "9afa2da059441f9704fec54f26c030479997c10418c102f184d98791d19e7de7"
+      }
+    ],
+    "config_hash": "2598b21611c09b2700284444e491ecb5aa9e0ae2e7035fe62054a73e48253f21"
+  },
+  "dependencies": {
+    "@ethereumjs/rlp": "4.0.1",
+    "ajv": "8.17.1",
+    "viem": "2.27.0",
+    "yaml": "2.6.1",
+    "dev:bun-types": "1.3.14",
+    "dev:typescript": "5.4.5"
+  },
+  "driver": {
+    "kind": "engine-stepper",
+    "slot_seconds": 12
+  },
+  "reset": {
+    "method": "fresh ethrex container + fresh sidecar process and dataDir",
+    "ms": [
+      2630,
+      2189
+    ]
+  },
+  "capabilities": {
+    "chain_id": "ok: 9",
+    "engine_head": "ok: block 0",
+    "observe_pass_line": "ok: pass reported for block 0",
+    "explorer_info": "ok: bootId 657110e0e8592273, oldestSeq 0"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "boot_id": "657110e0e8592273",
+      "wall_ms": 11701
+    },
+    {
+      "run": 2,
+      "boot_id": "6e4ef301960bf6af",
+      "wall_ms": 11205
+    }
+  ],
+  "coverage": [
+    {
+      "declared": 5,
+      "executed": 5,
+      "inconclusive": 0,
+      "mismatches": 0,
+      "run": 1
+    },
+    {
+      "declared": 5,
+      "executed": 5,
+      "inconclusive": 0,
+      "mismatches": 0,
+      "run": 2
+    }
+  ],
+  "overall": "PASS",
+  "exit_code": 0,
+  "shrink": {
+    "ran": false
+  },
+  "injected_regression": null,
+  "public_test_keys": "Actor keys derive from the scenario seed (framelab-actor/v1); the funder and relayer keys are public ethrex dev keys. All are PUBLIC TEST-ONLY. Never fund or use them on any other network.",
+  "sanitized": [
+    "absolute paths under the FrameLab checkout -> $FRAMELAB",
+    "vendor checkout -> $VENDOR",
+    "home directory -> ~"
+  ],
+  "files": {
+    "verdicts.json": "899bdb67e0da9210e35a1c686e3b7d7e143c4aeed21372837c7234fd8361a483",
+    "scenario.original.yaml": "341a5dc768ec6fa86bb92b780fd1633a0b303990afc59dd1c5ac22ac389f3aee",
+    "events.run1.jsonl": "4d7373a54bc780de1ffc983e4e5a603cbe976b40be27da2ecb5d62543452b588",
+    "events.run2.jsonl": "c2c925629b57a7254e26d9d159bf2a2eaa5cd81b4fc18c100172c931b3e70e6d",
+    "evidence/run1.evidence.json": "4ea5b30de923c395b1291c90426a0738341a983708cf55bcb5f32ddfe019e155",
+    "evidence/run2.evidence.json": "c627169f3080a4213333e250d6098b16dae0442fc1a72f7e2a2c265d57d4d353",
+    "evidence/run1.meta.json": "ceafc291cb285369bbf8d4217c504c99be442222936cc3b6608af75c534df348",
+    "evidence/run2.meta.json": "1d3ab616cc55314ab271c220d103c9ef641490bdda77d1976ebafcf6475348d1",
+    "evidence/run1.rpc.jsonl": "34290f21b282d2595eeafc1e86045edb01894738674db97a3081f06f06eb0ba4",
+    "evidence/run2.rpc.jsonl": "ca14021b0142e926b89a5decbcffa7f102c2b43b05b42d68b3661786c6d8773d",
+    "evidence/run1.observe.jsonl": "a798127a5cebe0a5423f8b81e2fd18ce72f7c65070fe59f9471326461a3c4f32",
+    "evidence/run2.observe.jsonl": "01303568aaaf7d61ed50339fd3d54dc71a56342a3621ddd6b054e2eebd25c937",
+    "reduction.json": "6b29985b8fb74bd3952a8d2382ee29f646c3ce97165e8ff1714bb3acb7ae8aed",
+    "patches/sidecar-observe.patch": "9afa2da059441f9704fec54f26c030479997c10418c102f184d98791d19e7de7",
+    "rule_pack.json": "c006002e5f435da4cd2fb5fbcd51c88b3b89a52284ff6158323e6fb818ee4a51",
+    "node_pin.json": "5b8be71b7cd6b4ed7f5413915e9a2a484d4d9983cae820970ed74cc6dfb88d9d",
+    "replay.sh": "11bce65d94f39427d554dd93fc9cd467ea9d873f34ca8c5123f95be2a44a828b",
+    "README.md": "f168a20d18e428cc4d8ff1f0bb995df5cd1683fe9b366c93cec2e812aa6c464b"
+  }
+}

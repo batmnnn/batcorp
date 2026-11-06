@@ -1,0 +1,42 @@
+{
+  "run": 2,
+  "scenario_id": "s1-payer-drop",
+  "scenario_hash": "ab7862194db77c5dae0548094dd66e01fd69b2d045f1738e43a99fb527870f38",
+  "ethrex": {
+    "image": "framelab/ethrex:9aa3645d-arm64-release-fast",
+    "image_id": "sha256:ee5838be22d4074cb13c820a472cf59bbbacc7698532ec3c5851a3d061d157f6",
+    "client_version": "ethrex/v23.0.0-eip8141-tracer-9aa3645d795945c64400f41a70aace0edfa7f383/aarch64-unknown-linux-gnu/rustc-v1.93.1",
+    "genesis_hash": "0x8d823c24eca211324f1058c6b8dcb6f6c567f68157a52d81847d6f8e25619962",
+    "chain_id": 9,
+    "startup_ms": 402
+  },
+  "sidecar": {
+    "build_hash": "a0d277d5460516f7dbeebe9fb6ec75d20a042cb96a1b0364a2eef52d0eea186f",
+    "commit": "2e22ff0a2898e69ea4bf5275bce1be8581a8582a",
+    "patches": [
+      {
+        "file": "patches/sidecar-observe.patch",
+        "sha256": "9afa2da059441f9704fec54f26c030479997c10418c102f184d98791d19e7de7"
+      }
+    ],
+    "config_hash": "2598b21611c09b2700284444e491ecb5aa9e0ae2e7035fe62054a73e48253f21",
+    "startup_ms": 1516,
+    "boot_id": "6e4ef301960bf6af"
+  },
+  "driver": {
+    "kind": "engine-stepper",
+    "slot_seconds": 12
+  },
+  "reset": {
+    "method": "fresh ethrex container + fresh sidecar process and dataDir",
+    "ms": 2189
+  },
+  "capabilities": {
+    "chain_id": "ok: 9",
+    "engine_head": "ok: block 0",
+    "observe_pass_line": "ok: pass reported for block 0",
+    "explorer_info": "ok: bootId 6e4ef301960bf6af, oldestSeq 0"
+  },
+  "fault": null,
+  "wall_ms": 11205
+}

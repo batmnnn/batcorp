@@ -1,0 +1,35 @@
+{
+  "ethrex": {
+    "image": "framelab/ethrex:9aa3645d-arm64-release-fast",
+    "image_id": "sha256:ee5838be22d4074cb13c820a472cf59bbbacc7698532ec3c5851a3d061d157f6",
+    "client_version": "ethrex/v23.0.0-eip8141-tracer-9aa3645d795945c64400f41a70aace0edfa7f383/aarch64-unknown-linux-gnu/rustc-v1.93.1",
+    "genesis_hash": "0x8d823c24eca211324f1058c6b8dcb6f6c567f68157a52d81847d6f8e25619962",
+    "chain_id": 9,
+    "startup_ms": 398,
+    "pinned_commit": "9aa3645d795945c64400f41a70aace0edfa7f383",
+    "genesis_sha256": "5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4",
+    "published_image_not_run": "ghcr.io/forshtat/eip8141-devnet@sha256:c9a7770f892e02255999e1c0ffd596ecee704d9175c2480811ccdcfa1c2224c6 (does not start under Rosetta; V12)"
+  },
+  "sidecar": {
+    "repo": "https://github.com/forshtat/mempool-workshop-sidecar",
+    "commit": "2e22ff0a2898e69ea4bf5275bce1be8581a8582a",
+    "build_label": "inject-s1",
+    "build_hash": "15b346123957ab7edd5c230054595ac186e1638e792b9d263e646182a2acd452",
+    "patches": [
+      {
+        "file": "patches/sidecar-observe.patch",
+        "sha256": "9afa2da059441f9704fec54f26c030479997c10418c102f184d98791d19e7de7"
+      },
+      {
+        "file": "patches/inject-s1-oldest-first.patch",
+        "sha256": "7b0635ddfd30276f1800a03293755147fd806bb86e1649159fe02d83b2abb5d9"
+      }
+    ],
+    "config_hash": "2598b21611c09b2700284444e491ecb5aa9e0ae2e7035fe62054a73e48253f21"
+  },
+  "driver": {
+    "kind": "engine-stepper",
+    "slot_seconds": 12
+  },
+  "reset_method": "fresh ethrex container + fresh sidecar process and dataDir"
+}
