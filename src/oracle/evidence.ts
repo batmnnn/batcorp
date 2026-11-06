@@ -32,6 +32,8 @@ export interface CheckpointObservation {
   addresses: Record<string, string>;
   /** Actor role -> balance (decimal wei) at the checkpoint block. */
   balances: Record<string, string>;
+  /** `role:0xslot` -> 32-byte value at the checkpoint block, for the scenario's watch_storage. */
+  storage?: Record<string, string>;
 }
 
 export interface RunEvidence {

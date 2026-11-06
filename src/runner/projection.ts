@@ -33,6 +33,8 @@ export function project(evidence: RunEvidence, verdict: RunVerdict) {
         ])
       ),
       balances: cp.balances,
+      addresses: cp.addresses,
+      storage: cp.storage ?? null,
     })),
     verdicts: verdict.assertions.map((a) => ({ assertion_id: a.assertion_id, verdict: a.verdict, observed: a.observed })),
   };

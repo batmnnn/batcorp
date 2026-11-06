@@ -13,7 +13,7 @@ import { combineRuns, exitCode, judgeRun, type RunVerdict } from "./oracle/verdi
 import type { ShrinkTarget } from "./reducer/candidate.ts";
 import { shrink } from "./reducer/shrink.ts";
 import { diffValues, EXCLUDED_FROM_COMPARISON, project } from "./runner/projection.ts";
-import { runDirFor, runScenario, writeRunFiles, type RunOutput } from "./runner/run.ts";
+import { FAULT_KINDS, runDirFor, runScenario, writeRunFiles, type Fault, type RunOutput } from "./runner/run.ts";
 import { canonicalHash, loadScenario, type LoadedScenario } from "./scenario/load.ts";
 import type { ScenarioV1 } from "./scenario/types.ts";
 
@@ -27,6 +27,10 @@ interface Prepared {
   rulePack: LoadedRulePack;
   build: SidecarBuild;
   outDir: string;
+  /** Negative-path testing only. */
+  fault?: Fault;
+  /** Negative-path testing only: run 2 on a different build, to show inconsistent double runs. */
+  run2Build?: SidecarBuild;
 }
 
 async function prepare(file: string, label: string, patches: string[], out: string | undefined, kind: string): Promise<Prepared> {
@@ -41,7 +45,8 @@ async function prepare(file: string, label: string, patches: string[], out: stri
 }
 
 async function runOnce(p: Prepared, loaded: LoadedScenario, dir: string, run: number): Promise<{ out: RunOutput; verdict: RunVerdict }> {
-  const out = await runScenario({ loaded, build: p.build, runDir: dir, run, ports: PORTS });
+  const build = run === 2 && p.run2Build ? p.run2Build : p.build;
+  const out = await runScenario({ loaded, build, runDir: dir, run, ports: PORTS, fault: p.fault });
   await writeRunFiles(dir, out);
   return { out, verdict: judgeRun(loaded.scenario.expectations, out.evidence, p.rulePack.pack) };
 }
@@ -50,7 +55,9 @@ async function runOnce(p: Prepared, loaded: LoadedScenario, dir: string, run: nu
 async function runTwice(p: Prepared) {
   const results: Array<{ out: RunOutput; verdict: RunVerdict }> = [];
   for (const run of [1, 2]) {
-    console.error(`run ${run}/2: ${p.loaded.scenario.id} on sidecar build ${p.build.label}-${p.build.buildHash.slice(0, 12)}`);
+    const build = run === 2 && p.run2Build ? p.run2Build : p.build;
+    const fault = p.fault ? `, FAULT ${p.fault.kind}@${p.fault.checkpoint_id}` : "";
+    console.error(`run ${run}/2: ${p.loaded.scenario.id} on sidecar build ${build.label}-${build.buildHash.slice(0, 12)}${fault}`);
     const r = await runOnce(p, p.loaded, runDirFor(p.outDir, run), run);
     console.error(`run ${run}: ${r.verdict.overall} (${r.verdict.counts.executed}/${r.verdict.counts.declared} executed, reset ${r.out.meta.reset.ms} ms, wall ${r.out.meta.wall_ms} ms)`);
     results.push(r);
@@ -65,6 +72,8 @@ async function runTwice(p: Prepared) {
     scenario: { id: p.loaded.scenario.id, hash: p.loaded.hash },
     rule_pack: { id: p.rulePack.pack.id, hash: p.rulePack.hash },
     sidecar_build: p.build,
+    ...(p.run2Build ? { run2_sidecar_build: p.run2Build } : {}),
+    ...(p.fault ? { fault: p.fault } : {}),
     overall,
     exit_code: exitCode(overall),
     disagreements,
@@ -88,9 +97,30 @@ const commonOptions = {
 };
 
 async function cmdRun(argv: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: commonOptions });
-  if (!positionals[0]) throw new Error("usage: framelab run <scenario.yaml> [--patch file]... [--label name] [--out dir]");
-  const p = await prepare(positionals[0], values.label, values.patch, values.out, "run");
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: { ...commonOptions, fault: { type: "string" }, "run2-patch": { type: "string" }, "run2-label": { type: "string" } },
+  });
+  if (!positionals[0]) {
+    throw new Error(
+      "usage: framelab run <scenario.yaml> [--patch file]... [--label name] [--out dir]\n" +
+        `  negative-path testing only: [--fault ${FAULT_KINDS.join("|")}@<checkpoint>] [--run2-patch file --run2-label name]`
+    );
+  }
+  const negative = values.fault !== undefined || values["run2-patch"] !== undefined;
+  const p = await prepare(positionals[0], values.label, values.patch, values.out, negative ? "negative" : "run");
+  if (values.fault) {
+    const [kind, checkpoint_id] = values.fault.split("@") as [Fault["kind"], string | undefined];
+    const checkpoints = p.loaded.scenario.steps.flatMap((s) => (s.action === "advance-to-checkpoint" ? [s.checkpoint_id] : []));
+    if (!FAULT_KINDS.includes(kind) || !checkpoint_id || !checkpoints.includes(checkpoint_id)) {
+      throw new Error(`--fault must be ${FAULT_KINDS.join("|")}@<one of ${checkpoints.join(", ")}>`);
+    }
+    p.fault = { kind, checkpoint_id };
+  }
+  if (values["run2-patch"]) {
+    p.run2Build = await ensureSidecarBuild(values["run2-label"] ?? "run2", [OBSERVE_PATCH, ...values.patch.map((f) => path.resolve(f)), path.resolve(values["run2-patch"])]);
+  }
   const { overall, disagreements, results } = await runTwice(p);
   printVerdicts(results[0]!.verdict, disagreements);
   console.log(`${overall} (exit ${exitCode(overall)}) -> ${p.outDir}`);

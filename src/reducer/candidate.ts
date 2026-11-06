@@ -1,5 +1,5 @@
 import type { RunEvidence } from "../oracle/evidence.ts";
-import type { AssertionVerdict, RunVerdict, VerdictClass } from "../oracle/verdict.ts";
+import { summarizeRun, type AssertionVerdict, type RunVerdict, type VerdictClass } from "../oracle/verdict.ts";
 import { validateScenario } from "../scenario/load.ts";
 import type { Expectation, ScenarioV1, Step } from "../scenario/types.ts";
 import type { Outcome } from "./ddmin.ts";
@@ -55,6 +55,10 @@ function stepActors(step: Step): string[] {
       return [step.actor, step.to];
     case "advance-to-checkpoint":
       return [];
+    case "deploy":
+      return [step.contract];
+    case "call":
+      return [step.actor, step.to];
   }
 }
 
@@ -103,7 +107,8 @@ export function buildCandidate(base: ScenarioV1, keptUnits: Unit[], removedActor
 
 /** Actors no remaining non-fund step or kept expectation refers to. */
 export function unusedActors(s: ScenarioV1): string[] {
-  const used = new Set([...s.steps.flatMap(stepActors), ...s.expectations.flatMap(expectationAccounts)]);
+  const used = new Set([...s.steps.flatMap(stepActors), ...s.expectations.flatMap(expectationAccounts), ...(s.watch_storage ?? []).map((w) => w.account)]);
+  for (const a of s.actors) if (a.contract && used.has(a.role)) used.add(a.contract.owner);
   return s.actors.map((a) => a.role).filter((r) => !used.has(r));
 }
 
@@ -116,6 +121,31 @@ export function stepCounts(s: ScenarioV1) {
 /** Reached with full evidence, but a declared precondition is measured false: the assertion does not apply. */
 function onlyPreconditionsFailed(a: AssertionVerdict): boolean {
   return a.preconditions.length > 0 && a.preconditions.every((p) => p.holds !== null) && a.preconditions.some((p) => p.holds === false);
+}
+
+/**
+ * Non-target expectations whose preconditions were measured false in every given run. The reduced
+ * case no longer exercises them; their expected outcome is never edited, only the assertion removed.
+ */
+export function inapplicableExpectations(target: ShrinkTarget, verdicts: RunVerdict[]): string[] {
+  if (verdicts.length === 0) return [];
+  return verdicts[0]!.assertions
+    .map((a) => a.assertion_id)
+    .filter((id) => id !== target.assertion_id)
+    .filter((id) =>
+      verdicts.every((v) => {
+        const a = v.assertions.find((x) => x.assertion_id === id);
+        return a !== undefined && a.verdict === "INCONCLUSIVE" && onlyPreconditionsFailed(a);
+      })
+    );
+}
+
+/** `scenario` with `ids` removed from its expectations, and `verdict` re-summarized to match. */
+export function withoutExpectations(scenario: ScenarioV1, verdict: RunVerdict, ids: string[]): { scenario: ScenarioV1; verdict: RunVerdict } {
+  const drop = new Set(ids);
+  const expectations = scenario.expectations.filter((e) => !drop.has(e.assertion_id));
+  const assertions = expectations.map((e) => verdict.assertions.find((a) => a.assertion_id === e.assertion_id)!);
+  return { scenario: { ...scenario, expectations }, verdict: summarizeRun(verdict.run, expectations, assertions) };
 }
 
 /** The frozen §5.4 predicate for one fresh run. */

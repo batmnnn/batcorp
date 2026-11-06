@@ -74,8 +74,19 @@ export function newestCancellationSet(cp: CheckpointObservation, accountRole: st
   return { set, owed: total, balance };
 }
 
-function evaluatePrecondition(p: Precondition, cp: CheckpointObservation): { holds: boolean | null; detail: string } {
+export function storageKey(account: string, slot: string): string {
+  return `${account}:0x${BigInt(slot).toString(16)}`;
+}
+
+function evaluatePrecondition(p: Precondition, cp: CheckpointObservation, run: RunEvidence): { holds: boolean | null; detail: string } {
   switch (p.kind) {
+    case "storage-equals": {
+      const at = p.checkpoint_id ? run.checkpoints[p.checkpoint_id] : cp;
+      if (!at?.block) return { holds: null, detail: `checkpoint ${p.checkpoint_id ?? cp.checkpoint_id} has no block` };
+      const raw = at.storage?.[storageKey(p.account, p.slot)];
+      if (raw === undefined) return { holds: null, detail: `${p.account} slot ${p.slot} was not read at ${at.checkpoint_id}` };
+      return { holds: BigInt(raw) === BigInt(p.value), detail: `${p.account} slot ${p.slot} = ${raw} at ${at.checkpoint_id} (block ${at.block.number})` };
+    }
     case "admitted": {
       const tx = cp.txs[p.tx_role];
       if (!tx || tx.admitted_at === undefined) return { holds: false, detail: `${p.tx_role} has no recorded admission` };
@@ -136,7 +147,7 @@ export function judgeAssertion(e: Expectation, run: RunEvidence, pack: RulePack)
   const observed = tx.fate;
   if (observed === "unknown") return inconclusive("unknown", [`${e.tx_role} status is unknown (raw: ${tx.raw_status ?? "missing"}); a missing hash is not eviction`]);
 
-  const preconditions = e.preconditions.map((p) => ({ precondition: p, ...evaluatePrecondition(p, cp) }));
+  const preconditions = e.preconditions.map((p) => ({ precondition: p, ...evaluatePrecondition(p, cp, run) }));
   const unknown = preconditions.filter((p) => p.holds === null);
   if (unknown.length > 0) return inconclusive(observed, unknown.map((p) => `precondition ${p.precondition.kind} unknown: ${p.detail}`), preconditions);
   const failed = preconditions.filter((p) => p.holds === false);
@@ -146,14 +157,22 @@ export function judgeAssertion(e: Expectation, run: RunEvidence, pack: RulePack)
     if (observed === "pending") return inconclusive(observed, [`${e.tx_role} was not in the pass's revalidated set`], preconditions);
   }
 
-  const verdict = classify(e.expected, observed);
+  let verdict = classify(e.expected, observed);
   const reasons = [`expected ${e.expected}, observed ${observed}${tx.raw_status ? ` (raw ${tx.raw_status})` : ""}`];
   if (tx.revert_reason) reasons.push(`node reason: ${tx.revert_reason}`);
+  if (e.deliberately_wrong && MISMATCH.includes(verdict)) {
+    verdict = "ASSERTION_MISMATCH";
+    reasons.unshift("wrong test expectation: this fixture flips the expected fate on purpose; not a node bug");
+  }
   return { ...base, observed, verdict, reasons, preconditions };
 }
 
 export function judgeRun(expectations: Expectation[], run: RunEvidence, pack: RulePack): RunVerdict {
-  const assertions = expectations.map((e) => judgeAssertion(e, run, pack));
+  return summarizeRun(run.run, expectations, expectations.map((e) => judgeAssertion(e, run, pack)));
+}
+
+/** `assertions[i]` must be the verdict for `expectations[i]`. */
+export function summarizeRun(run: number, expectations: Expectation[], assertions: AssertionVerdict[]): RunVerdict {
   const required = assertions.filter((_a, i) => expectations[i]!.required !== false);
   const executed = assertions.filter((a) => a.verdict !== "INCONCLUSIVE").length;
   const inconclusive = required.filter((a) => a.verdict === "INCONCLUSIVE").length;
@@ -162,7 +181,7 @@ export function judgeRun(expectations: Expectation[], run: RunEvidence, pack: Ru
   if (executed === 0 || inconclusive > 0) overall = "INCONCLUSIVE";
   else if (mismatches > 0) overall = "FAIL";
   else overall = "PASS";
-  return { run: run.run, assertions, overall, counts: { declared: assertions.length, executed, inconclusive, mismatches } };
+  return { run, assertions, overall, counts: { declared: assertions.length, executed, inconclusive, mismatches } };
 }
 
 /** Both runs must reach the same verdict per assertion; otherwise the combined result is inconclusive. */

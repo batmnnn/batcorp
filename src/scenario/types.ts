@@ -4,6 +4,8 @@ export interface ActorSpec {
   role: string;
   /** Funded from the public funder in the setup group; decimal wei. */
   fund_wei?: string;
+  /** A contract account deployed by a `deploy` step instead of a seed-derived key. */
+  contract?: { fixture: string; owner: string };
 }
 
 export interface Limits {
@@ -49,14 +51,31 @@ export interface CheckpointStep extends StepBase {
   checkpoint_id: string;
 }
 
-export type Step = FundStep | SubmitStep | TransferStep | CheckpointStep;
+/** The contract actor's owner sends a create tx for its fixture code, optionally with value. */
+export interface DeployStep extends StepBase {
+  action: "deploy";
+  contract: string;
+  value_wei?: string;
+}
+
+/** A normal tx from `actor` to `to` with raw calldata. */
+export interface CallStep extends StepBase {
+  action: "call";
+  actor: string;
+  to: string;
+  data: string;
+}
+
+export type Step = FundStep | SubmitStep | TransferStep | CheckpointStep | DeployStep | CallStep;
 
 export type Precondition =
   | { kind: "admitted"; tx_role: string }
   | { kind: "obligations-exceed-balance"; account: string }
   | { kind: "in-newest-cancellation-set"; tx_role: string; account: string }
   | { kind: "outside-newest-cancellation-set"; tx_role: string; account: string }
-  | { kind: "no-obligation-to"; tx_role: string; account: string };
+  | { kind: "no-obligation-to"; tx_role: string; account: string }
+  /** Measured with eth_getStorageAt at the checkpoint block; `checkpoint_id` defaults to the assertion's. */
+  | { kind: "storage-equals"; account: string; slot: string; value: string; checkpoint_id?: string };
 
 export interface Expectation {
   assertion_id: string;
@@ -68,6 +87,8 @@ export interface Expectation {
   preconditions: Precondition[];
   evidence_required: string[];
   required?: boolean;
+  /** Negative fixtures only: the expectation is wrong on purpose, so a mismatch blames the test, not the node. */
+  deliberately_wrong?: boolean;
 }
 
 export interface ScenarioV1 {
@@ -79,6 +100,8 @@ export interface ScenarioV1 {
   protocol_revisions: Record<string, string>;
   genesis: { sha256: string; chain_id: number };
   actors: ActorSpec[];
+  /** Storage slots read at every checkpoint block. */
+  watch_storage?: Array<{ account: string; slot: string }>;
   steps: Step[];
   expectations: Expectation[];
   limits: Limits;

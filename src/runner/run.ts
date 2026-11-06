@@ -1,17 +1,19 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Hex } from "viem";
+import { getContractAddress, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { deriveActor, funderActor, type Actor } from "../env/actors.ts";
+import { CONTRACT_FIXTURES, deployCode } from "../fixtures/contracts.ts";
+import { storageKey } from "../oracle/verdict.ts";
 import { startEthrex, stopEthrex, ethrexLogs, type EthrexHandle } from "../env/ethrex.ts";
 import { readObserve, startSidecar, stopSidecar, type ObserveLine, type SidecarBuild, type SidecarHandle } from "../env/sidecar.ts";
 import { EngineStepper, type StepResult } from "../env/stepper.ts";
 import type { CheckpointObservation, RunEvidence, TxObservation } from "../oracle/evidence.ts";
 import { normalizeStatus } from "../oracle/evidence.ts";
 import type { LoadedScenario } from "../scenario/load.ts";
-import type { CheckpointStep, FundStep, Step, SubmitStep, TransferStep } from "../scenario/types.ts";
+import type { CallStep, CheckpointStep, DeployStep, FundStep, Step, SubmitStep, TransferStep } from "../scenario/types.ts";
 import { sleep, waitUntil } from "../util/proc.ts";
-import { RpcError, type RpcRecord } from "../util/rpc.ts";
+import { RpcError, RpcTransportError, type RpcRecord } from "../util/rpc.ts";
 import { APPROVE_SCOPE, FRAME_MODE, SIG_SCHEME, encodeRawFrameTx, signFrameTx, toWire, type FrameTransaction } from "../vendor/sidecar/frameTx.ts";
 
 // PUBLIC TEST-ONLY: ethrex fixtures/keys/private_keys_l1.txt, funded in l1-hegota.json.
@@ -27,6 +29,17 @@ const FRAME_MAX_FEE = 500_000_000_000n;
 /** enforceBalances orders by millisecond admission time; keep admissions apart so order is unambiguous. */
 const ADMISSION_GAP_MS = 60;
 
+/**
+ * Local negative-path testing only (§11 test 3): breaks the run on purpose when it reaches one
+ * checkpoint, so each INCONCLUSIVE path is shown on a real node. Recorded in meta; never exported.
+ */
+export interface Fault {
+  kind: "skip-checkpoint" | "sidecar-down" | "sidecar-restart";
+  checkpoint_id: string;
+}
+
+export const FAULT_KINDS: Fault["kind"][] = ["skip-checkpoint", "sidecar-down", "sidecar-restart"];
+
 export interface RunConfig {
   loaded: LoadedScenario;
   build: SidecarBuild;
@@ -34,6 +47,7 @@ export interface RunConfig {
   run: number;
   ports: { http: number; auth: number; api: number };
   bundleIntervalMs?: number;
+  fault?: Fault;
 }
 
 export interface NormalizedEvent {
@@ -62,6 +76,7 @@ export interface RunMeta {
   reset: { method: string; ms: number };
   /** Checked before any scenario step; a failed check aborts the run as a runner-error. */
   capabilities: Record<string, string>;
+  fault: Fault | null;
   wall_ms: number;
 }
 
@@ -115,7 +130,7 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
       ttlSeconds: 86_400,
       sink,
     });
-    const sc = sidecar;
+    let sc = sidecar;
     // Capability check: the observation hook must report a pass for the starting head.
     await waitForPass(sc, head.number, 15_000);
     const resetMs = Date.now() - resetStarted;
@@ -134,14 +149,20 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
         observe_pass_line: `ok: pass reported for block ${head.number}`,
         explorer_info: `ok: bootId ${info.bootId}, oldestSeq ${info.oldestSeq}`,
       },
+      fault: cfg.fault ?? null,
       wall_ms: 0,
     };
 
-    const actors = new Map<string, Actor>(scenario.actors.map((a) => [a.role, deriveActor(scenario.seed, a.role)]));
-    const addresses = Object.fromEntries([...actors].map(([role, a]) => [role, a.address]));
+    const actors = new Map<string, Actor>(scenario.actors.filter((a) => !a.contract).map((a) => [a.role, deriveActor(scenario.seed, a.role)]));
+    const addresses: Record<string, string> = Object.fromEntries([...actors].map(([role, a]) => [role, a.address]));
+    const addressOf = (role: string): Hex => {
+      const a = addresses[role];
+      if (!a) throw new Error(`${role} has no address yet (contract not deployed?)`);
+      return a as Hex;
+    };
     const funder = funderActor();
     const nextNonce = new Map<string, bigint>();
-    const queuedNormal: Array<{ step_id: string; hash: Hex }> = [];
+    const queuedNormal: Array<{ step_id: string; hash: Hex; contract?: Hex }> = [];
     const txs = new Map<string, TxState>();
     const eth = node.rpc;
 
@@ -152,23 +173,27 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
       return n;
     };
     // New-account creation costs state gas on this fork (about 207k for a fresh address, about 12k otherwise).
-    const transferGas = async (from: string, to: string) =>
-      BigInt(await eth.call<Hex>("eth_estimateGas", [{ from, to, value: "0x1" }, "latest"]));
-    const sendTransfer = async (step: Step, from: Actor, to: string, value: bigint, gas?: bigint) => {
+    const transferGas = async (from: string, to: string | null, data: Hex = "0x", value = 1n) =>
+      BigInt(await eth.call<Hex>("eth_estimateGas", [{ from, ...(to ? { to } : {}), data, value: `0x${value.toString(16)}` }, "latest"]));
+    const sendTransfer = async (step: Step, from: Actor, to: string | null, value: bigint, gas?: bigint, data: Hex = "0x") => {
       const account = privateKeyToAccount(from.privateKey);
+      const nonce = await takeNonce(from.address);
       const raw = await account.signTransaction({
         type: "eip1559",
         chainId: node!.chainId,
-        nonce: Number(await takeNonce(from.address)),
-        to: to as Hex,
+        nonce: Number(nonce),
+        ...(to ? { to: to as Hex } : {}),
         value,
-        gas: gas ?? (await transferGas(from.address, to)),
+        data,
+        gas: gas ?? (await transferGas(from.address, to, data, value)),
         maxFeePerGas: MAX_FEE,
         maxPriorityFeePerGas: TIP,
       });
       const hash = await eth.call<Hex>("eth_sendRawTransaction", [raw]);
-      queuedNormal.push({ step_id: step.id, hash });
-      emit({ source: "ethrex", kind: "normal-tx-sent", step_id: step.id, tx_hash: hash, raw: { from: from.role, to, value: value.toString() } });
+      const contract = to ? undefined : getContractAddress({ from: from.address as Hex, nonce });
+      queuedNormal.push({ step_id: step.id, hash, contract });
+      emit({ source: "ethrex", kind: "normal-tx-sent", step_id: step.id, tx_hash: hash, raw: { from: from.role, to, value: value.toString(), data, contract } });
+      return { hash, contract };
     };
 
     const refreshTx = async (tx: TxState, checkpoint_id?: string, block?: StepResult) => {
@@ -212,15 +237,30 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
         case "fund": {
           for (const role of (step as FundStep).actors) {
             const spec = scenario.actors.find((a) => a.role === role)!;
-            if (spec.fund_wei) await sendTransfer(step, funder, actors.get(role)!.address, BigInt(spec.fund_wei));
+            if (spec.fund_wei) await sendTransfer(step, funder, addressOf(role), BigInt(spec.fund_wei));
           }
+          break;
+        }
+        case "deploy": {
+          const s = step as DeployStep;
+          const spec = scenario.actors.find((a) => a.role === s.contract)!.contract!;
+          const owner = actors.get(spec.owner)!;
+          const runtime = CONTRACT_FIXTURES[spec.fixture]!(owner.address as Hex);
+          const { contract } = await sendTransfer(step, owner, null, BigInt(s.value_wei ?? "0"), undefined, deployCode(runtime));
+          addresses[s.contract] = contract!;
+          emit({ source: "runner", kind: "contract-address", step_id: s.id, raw: { role: s.contract, fixture: spec.fixture, address: contract, runtime } });
+          break;
+        }
+        case "call": {
+          const s = step as CallStep;
+          await sendTransfer(step, actors.get(s.actor)!, addressOf(s.to), 0n, undefined, s.data as Hex);
           break;
         }
         case "transfer": {
           const s = step as TransferStep;
           const from = actors.get(s.actor)!;
           let value: bigint;
-          const to = actors.get(s.to)!.address;
+          const to = addressOf(s.to);
           const gas = await transferGas(from.address, to);
           if ("wei" in s.amount) {
             value = BigInt(s.amount.wei);
@@ -243,25 +283,27 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
         }
         case "submit": {
           const s = step as SubmitStep;
-          const actor = actors.get(s.actor)!;
+          const eoa = actors.get(s.actor);
+          const senderAddress = addressOf(s.actor);
           const key = BigInt(s.nonce_key);
-          const nonceSeq = key === 0n ? BigInt(await eth.call<Hex>("eth_getTransactionCount", [actor.address, "latest"])) : 0n;
+          const nonceSeq = key === 0n ? BigInt(await eth.call<Hex>("eth_getTransactionCount", [senderAddress, "latest"])) : 0n;
           const unsigned: FrameTransaction = {
             chainId: BigInt(node.chainId),
             nonceKeys: [key],
             nonceSeq,
-            sender: actor.address,
+            sender: senderAddress,
             frames: [
               { mode: FRAME_MODE.VERIFY, flags: APPROVE_SCOPE.EXECUTION_AND_PAYMENT, target: null, limits: { execution: 30_000n, state: 0n }, value: 0n, data: "0x" },
-              { mode: FRAME_MODE.SENDER, flags: APPROVE_SCOPE.NONE, target: s.to ? (actors.get(s.to)!.address as Hex) : actor.address, limits: { execution: 50_000n, state: 0n }, value: BigInt(s.value_wei ?? "0"), data: "0x" },
+              { mode: FRAME_MODE.SENDER, flags: APPROVE_SCOPE.NONE, target: s.to ? addressOf(s.to) : senderAddress, limits: { execution: 50_000n, state: 0n }, value: BigInt(s.value_wei ?? "0"), data: "0x" },
             ],
-            signatures: [{ scheme: SIG_SCHEME.SECP256K1, signer: "0x", msg: "0x", signature: "0x" }],
+            // A contract sender approves in its own VERIFY code, so it carries no signature entry.
+            signatures: eoa ? [{ scheme: SIG_SCHEME.SECP256K1, signer: "0x", msg: "0x", signature: "0x" }] : [],
             fees: { maxPriorityFeePerGas: TIP, maxFeePerGas: FRAME_MAX_FEE, maxFeePerBlobGas: 0n },
             blobVersionedHashes: [],
             recentRootReferences: [],
           };
-          const signed = await signFrameTx(unsigned, actor.privateKey);
-          const tx: TxState = { role: s.tx_role, step_id: s.id, fate: "unknown", sender: actor.address, sender_value: (s.value_wei ?? "0").toString() };
+          const signed = eoa ? await signFrameTx(unsigned, eoa.privateKey) : unsigned;
+          const tx: TxState = { role: s.tx_role, step_id: s.id, fate: "unknown", sender: senderAddress, sender_value: (s.value_wei ?? "0").toString() };
           txs.set(s.tx_role, tx);
           const sim = await eth.call<{ canonicalMempoolValid: boolean; payer: string | null; maxCost: string | null; canonicalMempoolViolation: string | null }>(
             "ethrex_simulateFrameTransaction",
@@ -286,9 +328,31 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
         }
         case "advance-to-checkpoint": {
           const s = step as CheckpointStep;
+          if (cfg.fault?.checkpoint_id === s.checkpoint_id) {
+            emit({ source: "runner", kind: "fault", checkpoint_id: s.checkpoint_id, raw: cfg.fault });
+            if (cfg.fault.kind === "skip-checkpoint") break;
+            if (cfg.fault.kind === "sidecar-down") {
+              sc.proc.kill("SIGKILL");
+              await sc.proc.exited;
+            }
+            if (cfg.fault.kind === "sidecar-restart") {
+              await stopSidecar(sc);
+              sc = sidecar = await startSidecar({
+                build: cfg.build,
+                ethrexRpcUrl: node.rpcUrl,
+                apiPort: cfg.ports.api,
+                runDir: path.join(cfg.runDir, "restart"),
+                relayerPrivateKey: RELAYER_KEY,
+                bundleIntervalMs: cfg.bundleIntervalMs ?? 250,
+                ttlSeconds: 86_400,
+                sink,
+              });
+            }
+          }
           for (const tx of txs.values()) await refreshTx(tx, s.checkpoint_id);
           const pendingBefore = [...txs.values()].filter((t) => t.fate === "pending").map((t) => t.role);
-          const expect = queuedNormal.splice(0).map((q) => q.hash);
+          const queued = queuedNormal.splice(0);
+          const expect = queued.map((q) => q.hash);
           let block: StepResult;
           try {
             block = await stepper.step({ expectTxs: expect });
@@ -297,9 +361,12 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
             break;
           }
           emit({ source: "ethrex", kind: "block", checkpoint_id: s.checkpoint_id, block_number: block.number.toString(), block_hash: block.hash, raw: block });
-          for (const hash of expect) {
-            const receipt = await eth.call<{ status: Hex }>("eth_getTransactionReceipt", [hash]);
-            if (receipt.status !== "0x1") problems.push({ checkpoint_id: s.checkpoint_id, kind: "fixture", detail: `normal tx ${hash} status ${receipt.status}` });
+          for (const q of queued) {
+            const receipt = await eth.call<{ status: Hex; contractAddress: Hex | null }>("eth_getTransactionReceipt", [q.hash]);
+            if (receipt.status !== "0x1") problems.push({ checkpoint_id: s.checkpoint_id, kind: "fixture", detail: `normal tx ${q.hash} (${q.step_id}) status ${receipt.status}` });
+            if (q.contract && receipt.contractAddress?.toLowerCase() !== q.contract.toLowerCase()) {
+              problems.push({ checkpoint_id: s.checkpoint_id, kind: "fixture", detail: `${q.step_id}: deployed at ${receipt.contractAddress}, expected ${q.contract}` });
+            }
           }
 
           let pass: CheckpointObservation["pass"] = null;
@@ -321,8 +388,14 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
           if (sc.proc.exitCode !== null) problems.push({ checkpoint_id: s.checkpoint_id, kind: "restart", detail: `sidecar exited ${sc.proc.exitCode}` });
 
           for (const tx of txs.values()) await refreshTx(tx, s.checkpoint_id, block);
+          const at = `0x${block.number.toString(16)}`;
           const balances: Record<string, string> = {};
-          for (const [role, a] of actors) balances[role] = BigInt(await eth.call<Hex>("eth_getBalance", [a.address, `0x${block.number.toString(16)}`])).toString();
+          for (const [role, address] of Object.entries(addresses)) balances[role] = BigInt(await eth.call<Hex>("eth_getBalance", [address, at])).toString();
+          const storage: Record<string, string> = {};
+          for (const w of scenario.watch_storage ?? []) {
+            const address = addresses[w.account];
+            if (address) storage[storageKey(w.account, w.slot)] = await eth.call<Hex>("eth_getStorageAt", [address, w.slot, at]);
+          }
 
           checkpoints[s.checkpoint_id] = {
             checkpoint_id: s.checkpoint_id,
@@ -330,15 +403,16 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
             pass,
             pending_before: pendingBefore,
             txs: Object.fromEntries([...txs].map(([role, t]) => [role, observationOf(t)])),
-            addresses,
+            addresses: { ...addresses },
             balances,
+            ...(scenario.watch_storage ? { storage } : {}),
           };
           break;
         }
       }
     }
   } catch (err) {
-    problems.push({ kind: "runner-error", detail: (err as Error).message });
+    problems.push({ kind: err instanceof RpcTransportError ? "transport" : "runner-error", detail: (err as Error).message });
     if (node) emit({ source: "ethrex", kind: "log-tail", raw: await ethrexLogs(ethrexName, 40) });
   } finally {
     if (sidecar) await stopSidecar(sidecar);

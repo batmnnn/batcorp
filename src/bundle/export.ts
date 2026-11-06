@@ -94,6 +94,9 @@ export async function exportBundle(opts: ExportOptions): Promise<{ manifest: Bun
   const original = YAML.parse(await readFile(path.join(opts.srcDir, "scenario.original.yaml"), "utf8")) as ScenarioV1;
   const hasMin = await exists(path.join(opts.srcDir, "scenario.min.yaml"));
   const reduction = (await exists(path.join(opts.srcDir, "reduction.json"))) ? JSON.parse(await readFile(path.join(opts.srcDir, "reduction.json"), "utf8")) : null;
+  if (verdicts.fault || verdicts.run2_sidecar_build || meta1.fault || meta2?.fault) {
+    throw new Error(`${opts.srcDir} is a negative-path test run (deliberate fault or mixed builds); it is not exportable as a regression`);
+  }
 
   await rm(opts.bundleDir, { recursive: true, force: true });
   await mkdir(path.join(opts.bundleDir, "evidence"), { recursive: true });
@@ -255,6 +258,7 @@ FRAMELAB=/path/to/framelab ./replay.sh
 - Results apply to this pinned local build and config only, not to the public network or other clients.
 - The two runs are a consistency check, not proof of determinism. Replay is a new execution.
 - A PASS covers the assertions run, not the whole client.
+- A mismatch means the observed fate differs from this scenario's written expectation under the cited rule. On its own it does not show a node bug: the expectation can be wrong.
 - The sidecar runs with \`patches/sidecar-observe.patch\`, which only logs reconcile pass completion.
 
 ## Keys

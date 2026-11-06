@@ -112,6 +112,13 @@ test("shrink removes all noise and the control, keeps the target, and confirms t
   expect(report.claim).toContain("Not shown to be 1-minimal");
   expect(report.totals.invalid).toBeGreaterThan(0);
   expect(calls.length).toBe(report.candidates.reduce((n, c) => n + c.runs, 0));
+  // With tx2 gone, the middle payer tx no longer falls in the newest-first set: its assertion is removed, not flipped.
+  expect(report.pruned_expectations).toHaveLength(1);
+  expect(best!.expectations.map((e) => e.assertion_id)).not.toContain(report.pruned_expectations[0]);
+  expect(best!.expectations.map((e) => e.assertion_id)).toContain(TARGET.assertion_id);
+  expect(best!.expectations.every((e) => NOISY.expectations.some((o) => JSON.stringify(o) === JSON.stringify(e)))).toBe(true);
+  expect(best!.description).toStartWith("Reduced by framelab shrink from s1-noisy");
+  expect(report.reduced?.expectations).toBe(best!.expectations.length);
 });
 
 test("unresolved runs are never accepted as a shrink", async () => {

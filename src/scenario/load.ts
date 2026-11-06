@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import YAML from "yaml";
+import { CONTRACT_FIXTURES } from "../fixtures/contracts.ts";
 import type { ScenarioV1, Step } from "./types.ts";
 
 export interface LoadedScenario {
@@ -33,7 +34,14 @@ export function validateScenario(s: ScenarioV1): string[] {
   const seen = new Set<string>();
   const roles = new Set<string>();
   const checkpoints = new Set<string>();
+  const deployed = new Set<string>();
+  const contractRoles = new Set(s.actors.filter((a) => a.contract).map((a) => a.role));
   for (const step of s.steps) {
+    const usesContract = step.action === "submit" ? step.actor : step.action === "call" ? step.to : undefined;
+    if (usesContract && contractRoles.has(usesContract) && !deployed.has(usesContract)) {
+      errors.push(`step ${step.id}: contract ${usesContract} is used before its deploy step`);
+    }
+    if ((step.action === "transfer" || step.action === "call") && contractRoles.has(step.actor)) errors.push(`step ${step.id}: a contract actor cannot sign a normal tx`);
     if (seen.has(step.id)) errors.push(`duplicate step id ${step.id}`);
     for (const dep of step.depends_on ?? []) if (!seen.has(dep)) errors.push(`step ${step.id} depends on ${dep}, which is not an earlier step`);
     seen.add(step.id);
@@ -43,6 +51,7 @@ export function validateScenario(s: ScenarioV1): string[] {
     switch (step.action) {
       case "fund":
         step.actors.forEach((a) => needActor(a, "actor"));
+        for (const a of step.actors) if (contractRoles.has(a)) errors.push(`step ${step.id}: fund ${a} through its deploy step's value_wei`);
         break;
       case "submit":
         needActor(step.actor, "actor");
@@ -61,18 +70,44 @@ export function validateScenario(s: ScenarioV1): string[] {
         if (checkpoints.has(step.checkpoint_id)) errors.push(`duplicate checkpoint ${step.checkpoint_id}`);
         checkpoints.add(step.checkpoint_id);
         break;
+      case "deploy": {
+        const spec = s.actors.find((a) => a.role === step.contract);
+        if (!spec?.contract) errors.push(`step ${step.id}: ${step.contract} is not a contract actor`);
+        else if (!CONTRACT_FIXTURES[spec.contract.fixture]) errors.push(`step ${step.id}: unknown contract fixture ${spec.contract.fixture}`);
+        else needActor(spec.contract.owner, "owner");
+        if (deployed.has(step.contract)) errors.push(`step ${step.id}: ${step.contract} deployed twice`);
+        deployed.add(step.contract);
+        break;
+      }
+      case "call":
+        needActor(step.actor, "actor");
+        needActor(step.to, "recipient");
+        if (!/^0x([0-9a-fA-F]{2})*$/.test(step.data)) errors.push(`step ${step.id}: data must be 0x-prefixed hex bytes`);
+        break;
       default:
         errors.push(`step ${(step as Step).id}: unknown action ${(step as { action: string }).action}`);
     }
   }
 
+  for (const w of s.watch_storage ?? []) {
+    if (!actorRoles.has(w.account)) errors.push(`watch_storage: unknown account ${w.account}`);
+    if (!/^0x[0-9a-fA-F]{1,64}$/.test(w.slot)) errors.push(`watch_storage: bad slot ${w.slot}`);
+  }
   const ids = new Set<string>();
   for (const e of s.expectations) {
+    for (const p of e.preconditions) {
+      if (p.kind !== "storage-equals") continue;
+      if (!(s.watch_storage ?? []).some((w) => w.account === p.account && BigInt(w.slot) === BigInt(p.slot))) {
+        errors.push(`${e.assertion_id}: storage precondition on ${p.account}:${p.slot} is not in watch_storage`);
+      }
+      if (p.checkpoint_id && !checkpoints.has(p.checkpoint_id)) errors.push(`${e.assertion_id}: precondition checkpoint ${p.checkpoint_id} does not exist`);
+    }
     if (ids.has(e.assertion_id)) errors.push(`duplicate assertion ${e.assertion_id}`);
     ids.add(e.assertion_id);
     if (!roles.has(e.tx_role)) errors.push(`${e.assertion_id}: tx role ${e.tx_role} is never submitted`);
     if (!checkpoints.has(e.checkpoint_id)) errors.push(`${e.assertion_id}: checkpoint ${e.checkpoint_id} does not exist`);
     if (!e.rule_ref) errors.push(`${e.assertion_id}: missing rule_ref`);
+    if (e.deliberately_wrong !== undefined && e.deliberately_wrong !== true) errors.push(`${e.assertion_id}: deliberately_wrong must be true or absent`);
   }
   return errors;
 }

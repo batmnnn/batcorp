@@ -5,7 +5,7 @@ import type { RunEvidence } from "../oracle/evidence.ts";
 import type { RunVerdict } from "../oracle/verdict.ts";
 import { canonicalHash } from "../scenario/load.ts";
 import type { Limits, ScenarioV1 } from "../scenario/types.ts";
-import { buildCandidate, judgePredicate, stepCounts, stepUnits, unusedActors, type ShrinkTarget, type Unit } from "./candidate.ts";
+import { buildCandidate, inapplicableExpectations, judgePredicate, stepCounts, stepUnits, unusedActors, withoutExpectations, type ShrinkTarget, type Unit } from "./candidate.ts";
 import { ddmin, type Outcome, type SingleDeletionReport } from "./ddmin.ts";
 
 export type Executor = (scenario: ScenarioV1, label: string) => Promise<{ evidence: RunEvidence; verdict: RunVerdict; ms: number }>;
@@ -35,6 +35,8 @@ export interface ShrinkReport {
   budget: { candidates_limit: number; wall_limit_ms: number; wall_used_ms: number; confirm_reserve_ms: number };
   stop_reason: StopReason;
   final_confirmation: { outcome: Outcome; reasons: string[] } | null;
+  /** Non-target expectations removed after the final confirmation because they no longer apply. */
+  pruned_expectations: string[];
   single_deletions: SingleDeletionReport | null;
   one_minimal: boolean;
   claim: string;
@@ -95,20 +97,20 @@ export async function shrink(opts: ShrinkOptions): Promise<{ report: ShrinkRepor
   /** Two fresh runs; the second only when the first is interesting. */
   const freshTwice = async (scenario: ScenarioV1, label: string) => {
     const reasons: string[] = [];
-    let runs = 0;
+    const results: Array<{ evidence: RunEvidence; verdict: RunVerdict }> = [];
     for (const k of [1, 2]) {
       const res = await opts.execute(scenario, `${label}-run${k}`);
-      runs++;
+      results.push(res);
       maxRunMs = Math.max(maxRunMs, res.ms);
       const p = judgePredicate(opts.target, scenario, res.evidence, res.verdict);
       reasons.push(`run ${k}: ${p.outcome} (${p.reason})`);
       if (p.outcome !== "interesting") {
         const outcome: Outcome = k === 2 && p.outcome === "boring" ? "unresolved" : p.outcome;
         if (k === 2 && p.outcome === "boring") reasons.push("fresh runs disagree");
-        return { outcome, reasons, runs };
+        return { outcome, reasons, runs: results.length, results };
       }
     }
-    return { outcome: "interesting" as Outcome, reasons, runs };
+    return { outcome: "interesting" as Outcome, reasons, runs: results.length, results };
   };
 
   const test = async (phase: CandidateRecord["phase"], kept: Unit[], actors: Set<string>): Promise<Outcome> => {
@@ -188,12 +190,28 @@ export async function shrink(opts: ShrinkOptions): Promise<{ report: ShrinkRepor
   }
 
   let finalConfirmation: ShrinkReport["final_confirmation"] = null;
+  let prunedExpectations: string[] = [];
   let confirmed = best.scenario !== opts.base && best.fresh;
   if (best.scenario !== opts.base && stopReason !== "cancelled") {
     const t0 = now();
     const res = await freshTwice(best.scenario, "final");
     finalConfirmation = { outcome: res.outcome, reasons: res.reasons };
     confirmed = res.outcome === "interesting";
+    if (confirmed) {
+      // Expectations never steer the runner, so the confirmed evidence can be re-judged without them.
+      const inapplicable = inapplicableExpectations(opts.target, res.results.map((r) => r.verdict));
+      const rejudged = res.results.map((r) => {
+        const pruned = withoutExpectations(best.scenario, r.verdict, inapplicable);
+        return { pruned, p: judgePredicate(opts.target, pruned.scenario, r.evidence, pruned.verdict) };
+      });
+      if (inapplicable.length > 0 && rejudged.every((x) => x.p.outcome === "interesting")) {
+        best = { ...best, scenario: rejudged[0]!.pruned.scenario };
+        prunedExpectations = inapplicable;
+        finalConfirmation.reasons.push(
+          `removed ${inapplicable.join(", ")}: preconditions measured false on both runs; re-judged ${rejudged.map((x) => `${x.pruned.verdict.overall}, ${x.p.reason}`).join(" / ")}`
+        );
+      }
+    }
     const record: CandidateRecord = {
       n: records.length + 1,
       phase: "final-confirm",
@@ -221,6 +239,12 @@ export async function shrink(opts: ShrinkOptions): Promise<{ report: ShrinkRepor
     cached: searchRecords.filter((r) => r.cached).length,
   };
   const oneMinimal = stopReason === "complete" && singleDeletions !== null && singleDeletions.unresolved === 0;
+  if (confirmed && best.scenario !== opts.base) {
+    const note =
+      `Reduced by framelab shrink from ${opts.base.id} (${canonicalHash(opts.base).slice(0, 12)}) for ${opts.target.assertion_id} ${opts.target.verdict}. ` +
+      `Derivations are carried over unchanged and may mention removed steps; preconditions are re-measured on every run.`;
+    best = { ...best, scenario: { ...best.scenario, description: `${note}\n\n${best.scenario.description ?? ""}`.trim() } };
+  }
   const reduced =
     confirmed && best.scenario !== opts.base
       ? { ...stepCounts(best.scenario), hash: canonicalHash(best.scenario), removed_units: allUnits.filter((u) => !best.units.includes(u)).map((u) => u.id), removed_actors: [...best.actors] }
@@ -245,6 +269,7 @@ export async function shrink(opts: ShrinkOptions): Promise<{ report: ShrinkRepor
       budget: { candidates_limit: opts.limits.shrink_candidates, wall_limit_ms: opts.limits.shrink_wall_ms, wall_used_ms: now() - started, confirm_reserve_ms: reserveMs() },
       stop_reason: stopReason,
       final_confirmation: finalConfirmation,
+      pruned_expectations: prunedExpectations,
       single_deletions: singleDeletions,
       one_minimal: oneMinimal,
       claim,
