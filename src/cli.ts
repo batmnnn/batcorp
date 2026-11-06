@@ -1,8 +1,12 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import YAML from "yaml";
+import { exportBundle } from "./bundle/export.ts";
+import { sha256File } from "./env/ethrex.ts";
 import { ETHREX_PIN, SIDECAR_PIN } from "./env/pins.ts";
+import { exec } from "./util/proc.ts";
 import { ensureSidecarBuild, type SidecarBuild } from "./env/sidecar.ts";
 import { loadRulePack, verifyRulePack, type LoadedRulePack } from "./oracle/rulepack.ts";
 import { combineRuns, exitCode, judgeRun, type RunVerdict } from "./oracle/verdict.ts";
@@ -16,6 +20,7 @@ import type { ScenarioV1 } from "./scenario/types.ts";
 const FRAMELAB_ROOT = path.resolve(import.meta.dir, "..");
 const OBSERVE_PATCH = path.join(FRAMELAB_ROOT, "patches/sidecar-observe.patch");
 const PORTS = { http: 18545, auth: 18551, api: 15437 };
+const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
 
 interface Prepared {
   loaded: LoadedScenario;
@@ -143,8 +148,98 @@ async function cmdShrink(argv: string[]): Promise<number> {
   return exitCode(original.overall);
 }
 
+async function cmdExport(argv: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: { out: { type: "string" } } });
+  if (!positionals[0]) throw new Error("usage: framelab export <run-or-shrink-dir> [--out bundle-dir]");
+  const srcDir = path.resolve(positionals[0]);
+  const bundleDir = path.resolve(values.out ?? path.join(FRAMELAB_ROOT, "bundles", path.basename(srcDir)));
+  const { manifest, findings } = await exportBundle({ srcDir, bundleDir, framelabRoot: FRAMELAB_ROOT });
+  if (!manifest) {
+    for (const f of findings) console.error(`SECRET SCAN ${f.file}: ${f.kind}: ${f.excerpt}`);
+    console.error(`export refused: ${findings.length} finding(s); no bundle was written`);
+    return 2;
+  }
+  console.log(`bundle ${bundleDir}: ${Object.keys(manifest.files).length + 2} files, overall ${manifest.overall}, shrink ${manifest.shrink.ran ? "ran" : "did not run"}${manifest.injected_regression ? `, LOCAL INJECTED REGRESSION ${manifest.injected_regression.label}` : ""}`);
+  return 0;
+}
+
+async function cmdCheckPins(argv: string[]): Promise<number> {
+  const dir = argv[0] && path.resolve(argv[0]);
+  if (!dir) throw new Error("usage: framelab check-pins <bundle-dir>");
+  const read = async (f: string) => JSON.parse(await readFile(path.join(dir, f), "utf8"));
+  const manifest = await read("manifest.json");
+  const pin = await read("node_pin.json");
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const sidecarHead = (await exec(["git", "rev-parse", "HEAD"], { cwd: SIDECAR_PIN.dir, allowFail: true })).stdout.trim();
+  if (pin.sidecar.commit !== SIDECAR_PIN.commit) errors.push(`bundle sidecar pin ${pin.sidecar.commit} != FrameLab pin ${SIDECAR_PIN.commit}`);
+  if (sidecarHead !== SIDECAR_PIN.commit) errors.push(`vendor sidecar checkout is at ${sidecarHead || "nothing"}, pin is ${SIDECAR_PIN.commit}`);
+  if (pin.ethrex.pinned_commit !== ETHREX_PIN.commit) errors.push(`bundle ethrex pin ${pin.ethrex.pinned_commit} != FrameLab pin ${ETHREX_PIN.commit}`);
+  if (pin.ethrex.genesis_sha256 !== ETHREX_PIN.genesisSha256) errors.push("bundle genesis hash differs from the FrameLab pin");
+  const localGenesis = await sha256File(ETHREX_PIN.genesisPath).catch(() => "missing");
+  if (localGenesis !== ETHREX_PIN.genesisSha256) errors.push(`local genesis ${ETHREX_PIN.genesisPath} hash is ${localGenesis}`);
+  const image = await exec(["docker", "image", "inspect", "--format", "{{.Id}}", pin.ethrex.image], { allowFail: true });
+  if (image.code !== 0) errors.push(`ethrex image ${pin.ethrex.image} is not present locally`);
+  else if (image.stdout.trim() !== pin.ethrex.image_id) warnings.push(`ethrex image ID ${image.stdout.trim()} differs from recorded ${pin.ethrex.image_id} (local rebuild of the same commit?)`);
+  const rulePackText = await readFile(path.join(dir, "rule_pack.json"), "utf8");
+  const localRulePack = await readFile(path.join(FRAMELAB_ROOT, "rulepacks", `${manifest.rule_pack.id}.json`), "utf8").catch(() => "");
+  if (sha256Hex(rulePackText) !== manifest.rule_pack.hash) errors.push("bundle rule_pack.json does not match the manifest hash");
+  if (sha256Hex(localRulePack) !== manifest.rule_pack.hash) errors.push(`local rule pack ${manifest.rule_pack.id} differs from the bundle's frozen oracle`);
+  for (const p of pin.sidecar.patches as Array<{ file: string; sha256: string }>) {
+    const text = await readFile(path.join(dir, p.file), "utf8").catch(() => null);
+    if (text === null || sha256Hex(text) !== p.sha256) errors.push(`patch ${p.file} is missing or changed`);
+  }
+  if (manifest.tool.commit !== (await exec(["git", "rev-parse", "HEAD"], { cwd: FRAMELAB_ROOT, allowFail: true })).stdout.trim()) {
+    warnings.push(`FrameLab checkout differs from the bundle's ${manifest.tool.commit}`);
+  }
+  for (const w of warnings) console.error(`check-pins warning: ${w}`);
+  for (const e of errors) console.error(`check-pins error: ${e}`);
+  if (errors.length > 0) return 2;
+  console.error("check-pins: pins match");
+  return 0;
+}
+
+async function cmdCompare(argv: string[]): Promise<number> {
+  const [oldDir, newDir] = argv.map((a) => path.resolve(a));
+  if (!oldDir || !newDir) throw new Error("usage: framelab compare <old-bundle-or-run-dir> <new-run-dir>");
+  const readJson = async (d: string, f: string) => JSON.parse(await readFile(path.join(d, f), "utf8"));
+  const before = await readJson(oldDir, "verdicts.json");
+  const after = await readJson(newDir, "verdicts.json");
+  const reduction = await readJson(oldDir, "reduction.json").catch(() => null);
+  if (before.rule_pack.hash !== after.rule_pack.hash) {
+    console.log(`not comparable: rule pack ${before.rule_pack.hash.slice(0, 12)} vs ${after.rule_pack.hash.slice(0, 12)}; the oracle must be frozen`);
+    return 2;
+  }
+  let only: string | null = null;
+  if (before.scenario.hash !== after.scenario.hash) {
+    if (reduction?.reduced?.hash === after.scenario.hash) only = reduction.target.assertion_id;
+    else {
+      console.log("not comparable: different scenario (neither the same scenario nor the bundle's confirmed reduced case)");
+      return 2;
+    }
+  }
+  console.log(`old node build ${before.sidecar_build.label}-${before.sidecar_build.buildHash.slice(0, 12)}; new node build ${after.sidecar_build.label}-${after.sidecar_build.buildHash.slice(0, 12)}`);
+  type A = { assertion_id: string; verdict: string; observed: string };
+  const afterById = new Map<string, A>(after.runs[0].assertions.map((a: A) => [a.assertion_id, a]));
+  const rows = (before.runs[0].assertions as A[])
+    .filter((a) => !only || a.assertion_id === only)
+    .map((a) => {
+      const b = afterById.get(a.assertion_id);
+      const change = !b ? "missing" : a.verdict === b.verdict ? "unchanged" : b.verdict === "PASS" || b.verdict === "EXPECTED_INVALIDATION" ? "now passes" : "changed";
+      return { assertion_id: a.assertion_id, before: `${a.verdict}/${a.observed}`, after: b ? `${b.verdict}/${b.observed}` : "missing", change };
+    });
+  if (only && reduction) {
+    const t = rows[0];
+    console.log(`reduced-case replay: target ${only} expected ${reduction.target.verdict}, got ${t?.after ?? "missing"}`);
+  }
+  for (const r of rows) console.log(`${r.assertion_id.padEnd(10)} ${r.before.padEnd(30)} -> ${r.after.padEnd(30)} ${r.change}`);
+  await writeFile(path.join(newDir, "compare.json"), JSON.stringify({ old: oldDir, new: newDir, scope: only ? `target ${only} only` : "all assertions", old_build: before.sidecar_build, new_build: after.sidecar_build, rows, new_overall: after.overall }, null, 2));
+  console.log(`new run overall ${after.overall} (exit ${exitCode(after.overall)}); expectations were not changed`);
+  return exitCode(after.overall);
+}
+
 const [command, ...rest] = Bun.argv.slice(2);
-const commands: Record<string, (argv: string[]) => Promise<number>> = { run: cmdRun, shrink: cmdShrink };
+const commands: Record<string, (argv: string[]) => Promise<number>> = { run: cmdRun, shrink: cmdShrink, export: cmdExport, "check-pins": cmdCheckPins, compare: cmdCompare };
 const handler = command ? commands[command] : undefined;
 if (!handler) {
   console.error(`usage: framelab <${Object.keys(commands).join("|")}> ...`);

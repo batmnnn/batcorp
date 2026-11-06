@@ -55,6 +55,8 @@ export interface RunMeta {
   sidecar: { build_hash: string; commit: string; patches: SidecarBuild["patches"]; config_hash: string; startup_ms: number; boot_id: string };
   driver: { kind: "engine-stepper"; slot_seconds: number };
   reset: { method: string; ms: number };
+  /** Checked before any scenario step; a failed check aborts the run as a runner-error. */
+  capabilities: Record<string, string>;
   wall_ms: number;
 }
 
@@ -121,6 +123,12 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
       sidecar: { build_hash: cfg.build.buildHash, commit: cfg.build.commit, patches: cfg.build.patches, config_hash: sc.configHash, startup_ms: sc.startupMs, boot_id: info.bootId },
       driver: { kind: "engine-stepper", slot_seconds: 12 },
       reset: { method: "fresh ethrex container + fresh sidecar process and dataDir", ms: resetMs },
+      capabilities: {
+        chain_id: `ok: ${node.chainId}`,
+        engine_head: `ok: block ${head.number}`,
+        observe_pass_line: `ok: pass reported for block ${head.number}`,
+        explorer_info: `ok: bootId ${info.bootId}, oldestSeq ${info.oldestSeq}`,
+      },
       wall_ms: 0,
     };
 
@@ -348,10 +356,12 @@ async function waitForPass(sc: SidecarHandle, block: bigint, timeoutMs: number):
 }
 
 export async function writeRunFiles(dir: string, out: RunOutput): Promise<void> {
-  const json = (v: unknown) => JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x), 2);
+  const big = (_k: string, x: unknown) => (typeof x === "bigint" ? x.toString() : x);
+  const json = (v: unknown) => JSON.stringify(v, big, 2);
+  const jsonl = (rows: unknown[]) => rows.map((r) => JSON.stringify(r, big)).join("\n") + "\n";
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, "evidence.json"), json(out.evidence));
-  await writeFile(path.join(dir, "events.jsonl"), out.events.map((e) => JSON.stringify(e)).join("\n") + "\n");
-  await writeFile(path.join(dir, "rpc.jsonl"), out.rpc.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  await writeFile(path.join(dir, "events.jsonl"), jsonl(out.events));
+  await writeFile(path.join(dir, "rpc.jsonl"), jsonl(out.rpc));
   await writeFile(path.join(dir, "meta.json"), json(out.meta));
 }
