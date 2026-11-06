@@ -3,144 +3,587 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="FrameLab: release check for alt-mempool nodes. Local only.">
+<!-- Local only: no fonts, scripts or images are fetched from anywhere; the API is same-origin. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111317'/%3E%3Cpath d='M8 13V8h5M19 8h5v5M24 19v5h-5M13 24H8v-5' stroke='%23e9ebee' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='13' y='13' width='6' height='6' rx='1.5' fill='%2346d397'/%3E%3C/svg%3E">
 <title>FrameLab</title>
 <style>
+/* ============ tokens ============ */
 :root {
-  color-scheme: light dark;
-  --bg: #f6f6f3; --panel: #ffffff; --text: #1b1b1a; --muted: #5a5a55; --border: #d7d6d0; --ring: #2457c5;
-  --pass-bg: #e2f2e5; --pass-fg: #145523;
-  --inv-bg: #e1edf9; --inv-fg: #0b4a83;
-  --fail-bg: #fbe3e3; --fail-fg: #8a1c1c;
-  --inc-bg: #e9e9e6; --inc-fg: #3d3d3a;
-  --amber-bg: #fcefd2; --amber-fg: #774800;
-  --accent: #2457c5; --accent-fg: #ffffff;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --r: 6px; --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  color-scheme: dark;
+  /* one cool-graphite family, stepped by elevation */
+  --bg: #0a0b0d;
+  --surface-0: #0d0f12;
+  --surface-1: #111317;
+  --surface-2: #161a1f;
+  --surface-3: #1c2027;
+  --line: rgba(214, 224, 245, 0.07);
+  --line-2: rgba(214, 224, 245, 0.11);
+  --line-3: rgba(214, 224, 245, 0.19);
+  --text: #e9ebee;
+  --text-2: #aeb4bd;
+  --text-3: #808893;
+  --hi: #ffffff;
+  --ring: #7cc0ff;
+  /* semantic: verdicts carry the only saturated colour on the page */
+  --pass: #46d397;  --pass-bg: rgba(70, 211, 151, 0.09);  --pass-line: rgba(70, 211, 151, 0.30);
+  --inv: #74b8ff;   --inv-bg: rgba(116, 184, 255, 0.09);  --inv-line: rgba(116, 184, 255, 0.30);
+  --fail: #ff6b6e;  --fail-bg: rgba(255, 107, 110, 0.09); --fail-line: rgba(255, 107, 110, 0.34);
+  --inc: #aeb4bd;   --inc-bg: rgba(174, 180, 189, 0.08);  --inc-line: rgba(174, 180, 189, 0.24);
+  --amber: #f3b84b; --amber-bg: rgba(243, 184, 75, 0.09); --amber-line: rgba(243, 184, 75, 0.32);
+  --live: #74b8ff;
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  --r-sm: 6px; --r-md: 9px; --r-lg: 14px; --r-xl: 20px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-1: 100ms; --t-2: 150ms; --t-3: 220ms;
+  --top-h: 60px;
+  --z-base: 1; --z-sticky: 2; --z-top: 10; --z-grain: 20;
+  --shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 36px -20px rgba(0, 0, 0, 0.7);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #131312; --panel: #1c1c1a; --text: #ecebe6; --muted: #a8a7a0; --border: #3a3935; --ring: #8fb1ff;
-    --pass-bg: #16301c; --pass-fg: #9fe3b0; --inv-bg: #12283f; --inv-fg: #a9d1ff;
-    --fail-bg: #3a1616; --fail-fg: #ffb3b3; --inc-bg: #2a2a28; --inc-fg: #cfcec8;
-    --amber-bg: #392a0b; --amber-fg: #ffd68c; --accent: #8fb1ff; --accent-fg: #0d1a33;
-  }
+
+/* ============ base ============ */
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.14) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::selection { background: rgba(124, 192, 255, 0.28); }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--top-h) + 16px); }
+body {
+  margin: 0; min-height: 100dvh; background: var(--bg); color: var(--text);
+  font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-* { box-sizing: border-box; }
-html { scroll-padding-top: 140px; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
-code, .mono, pre { font-family: var(--mono); font-size: 12.5px; }
-h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
-h2 { font-size: 18px; } h3 { font-size: 15px; } h4 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: var(--s4); }
-p { margin: var(--s2) 0; }
-a { color: var(--accent); }
+/* ambient light from the top-left, one source, matching the panel highlights */
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(1000px 460px at 12% -180px, rgba(116, 184, 255, 0.075), transparent 70%);
+}
+/* film grain: breaks the flat digital black */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: var(--z-grain); opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.012em; line-height: 1.2; text-wrap: balance; }
+h2 { font-size: 20px; }
+h3 { font-size: 15px; letter-spacing: -0.006em; }
+h4 { font-size: 12px; font-weight: 500; color: var(--text-3); letter-spacing: 0.01em; margin: 22px 0 8px; }
+p { margin: 8px 0; text-wrap: pretty; max-width: 78ch; }
+a { color: var(--inv); text-decoration: underline; text-decoration-color: rgba(116, 184, 255, 0.35); text-underline-offset: 3px; transition: text-decoration-color var(--t-2) var(--ease); }
+a:hover { text-decoration-color: currentColor; }
+a .ic { width: 12px; height: 12px; margin-left: 3px; vertical-align: -1px; }
+code, .mono, pre, kbd { font-family: var(--mono); font-variant-ligatures: none; }
+.mono { font-size: 12.5px; }
+code { font-size: 12px; padding: 1px 6px; border-radius: 5px; background: var(--surface-3); border: 1px solid var(--line); color: var(--text); }
 button, select, input { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); padding: var(--s3) var(--s5); border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 2; }
-.brand { font-weight: 650; font-size: 16px; }
-.brand span { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: var(--s2); }
-.states { display: flex; flex-wrap: wrap; gap: var(--s1); list-style: none; margin: 0; padding: 0; }
-.states li { padding: 2px var(--s2); border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-.states li[aria-current="step"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
-.states li.unbuilt { border-style: dashed; }
-
-main { padding: var(--s5); max-width: 1500px; margin: 0 auto; display: grid; gap: var(--s4); }
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: var(--s4) var(--s5); }
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
-.spacer { flex: 1; }
-.muted { color: var(--muted); }
+.muted { color: var(--text-2); }
+.faint { color: var(--text-3); }
 .small { font-size: 12.5px; }
-
-.btn { min-height: 40px; padding: 0 var(--s4); border-radius: var(--r); border: 1px solid var(--border); background: var(--panel); cursor: pointer; }
-.btn:hover:not(:disabled) { border-color: var(--text); }
-.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
-.linkish { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; min-height: 0; }
-
-.pill { display: inline-block; padding: 1px var(--s2); border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.v-PASS { background: var(--pass-bg); color: var(--pass-fg); }
-.v-EXPECTED_INVALIDATION { background: var(--inv-bg); color: var(--inv-fg); }
-.v-STALE_KEPT, .v-WRONGLY_EVICTED, .v-ASSERTION_MISMATCH, .v-FAIL { background: var(--fail-bg); color: var(--fail-fg); }
-.v-INCONCLUSIVE { background: var(--inc-bg); color: var(--inc-fg); }
-.v-SPEC_DIVERGENCE { background: var(--amber-bg); color: var(--amber-fg); }
-
-.banner { padding: var(--s2) var(--s3); border-radius: var(--r); font-weight: 600; }
-.banner.amber { background: var(--amber-bg); color: var(--amber-fg); }
-.banner.grey { background: var(--inc-bg); color: var(--inc-fg); }
-.banner.red { background: var(--fail-bg); color: var(--fail-fg); }
-
-.summary.s-pass { border-left: 4px solid var(--pass-fg); }
-.summary.s-fail { border-left: 4px solid var(--fail-fg); }
-.summary.s-inconclusive { border-left: 4px solid var(--inc-fg); background: color-mix(in srgb, var(--inc-bg) 45%, var(--panel)); }
-.facts { margin: var(--s2) 0 0; padding-left: var(--s5); }
-.facts li { margin: 2px 0; }
-
-dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--s4); margin: var(--s2) 0; }
-dl.kv dt { color: var(--muted); }
-dl.kv dd { margin: 0; overflow-wrap: anywhere; }
-
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: var(--s4); align-items: start; }
-@media (max-width: 1000px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
-.tabs { display: flex; gap: var(--s1); margin-bottom: var(--s3); }
-.tab { min-height: 36px; padding: 0 var(--s3); border: 1px solid var(--border); background: var(--panel); border-radius: var(--r); cursor: pointer; }
-.tab[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
-.grid-wrap { overflow-x: auto; }
-table.timeline { border-collapse: separate; border-spacing: 0; min-width: 100%; }
-table.timeline th, table.timeline td { border-bottom: 1px solid var(--border); padding: var(--s1); text-align: left; vertical-align: top; }
-table.timeline thead th { font-weight: 600; font-size: 12px; min-width: 92px; position: sticky; top: 0; background: var(--panel); }
-table.timeline thead th .sub { display: block; font-weight: 400; color: var(--muted); }
-table.timeline thead th.cp { background: color-mix(in srgb, var(--inv-bg) 35%, var(--panel)); }
-table.timeline tbody th { position: sticky; left: 0; background: var(--panel); font-family: var(--mono); font-size: 12.5px; white-space: nowrap; padding-right: var(--s3); }
-.cell { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); text-align: left; padding: var(--s1) var(--s2); cursor: pointer; display: grid; gap: 1px; }
-.cell .fate { font-family: var(--mono); font-size: 12px; }
-.cell .aid { font-size: 11px; font-weight: 700; }
-.cell .pill, .cell .vlabel { white-space: nowrap; }
-table.timeline td { min-width: 150px; }
-.cell[aria-pressed="true"] { outline: 2px solid var(--ring); outline-offset: 1px; }
-.cell.empty { border-style: dashed; color: var(--muted); }
-.cell.v-PASS, .cell.v-EXPECTED_INVALIDATION, .cell.v-STALE_KEPT, .cell.v-WRONGLY_EVICTED, .cell.v-ASSERTION_MISMATCH, .cell.v-INCONCLUSIVE { border-color: transparent; }
-
-.detail { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; }
-.ba { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s2); align-items: center; margin: var(--s3) 0; }
-.ba > div { border: 1px solid var(--border); border-radius: var(--r); padding: var(--s2); }
-.ba .label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-ul.pre { list-style: none; padding: 0; margin: var(--s2) 0; display: grid; gap: var(--s1); }
-ul.pre li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s1); }
-.ok { color: var(--pass-fg); font-weight: 700; } .no { color: var(--fail-fg); font-weight: 700; } .unk { color: var(--muted); font-weight: 700; }
-blockquote { margin: var(--s2) 0; padding: var(--s2) var(--s3); border-left: 3px solid var(--border); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); }
-blockquote cite { display: block; margin-top: var(--s1); font-style: normal; font-size: 12px; color: var(--muted); }
-pre { margin: var(--s2) 0; padding: var(--s3); background: color-mix(in srgb, var(--bg) 70%, var(--panel)); border: 1px solid var(--border); border-radius: var(--r); overflow: auto; max-height: 360px; }
-details > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
-
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s3); margin: var(--s3) 0; }
-.stat { border: 1px solid var(--border); border-radius: var(--r); padding: var(--s3); }
-.stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
-.stat span { color: var(--muted); font-size: 12.5px; }
-.big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: var(--s2); vertical-align: middle; }
-@media (prefers-reduced-motion: no-preference) { .live::before { animation: pulse 1.2s ease-in-out infinite; } }
-@keyframes pulse { 50% { opacity: .25; } }
-.log { max-height: 220px; }
-.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
-.chip { border: 1px solid var(--border); border-radius: 999px; padding: 0 var(--s2); font-family: var(--mono); font-size: 12px; }
-table.plain { border-collapse: collapse; }
-table.plain th, table.plain td { padding: 2px var(--s3) 2px 0; text-align: left; font-variant-numeric: tabular-nums; }
-table.plain th { color: var(--muted); font-weight: 500; }
-.results { display: grid; gap: var(--s1); margin-top: var(--s2); }
-.result { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: var(--s3); align-items: center; text-align: left; min-height: 44px; padding: var(--s2) var(--s3); border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); cursor: pointer; }
-.result:hover { border-color: var(--text); }
-.kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.field { display: grid; gap: var(--s1); }
-.field select { min-height: 40px; padding: 0 var(--s2); border-radius: var(--r); border: 1px solid var(--border); background: var(--panel); min-width: 280px; }
-.skeleton { height: 12px; border-radius: 4px; background: var(--inc-bg); margin: var(--s2) 0; }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.row.tight { gap: 6px 8px; }
+.spacer { flex: 1; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ============ top bar ============ */
+.top {
+  position: sticky; top: 0; z-index: var(--z-top);
+  background: rgba(10, 11, 13, 0.74); -webkit-backdrop-filter: saturate(140%) blur(14px); backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.top-inner { max-width: 1440px; margin: 0 auto; height: var(--top-h); padding: 0 var(--sp-6); display: flex; align-items: center; gap: var(--sp-5); }
+.brand { display: flex; align-items: center; gap: 10px; flex: none; }
+.mark {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--text);
+  background: linear-gradient(180deg, #20252c, #13161b); border: 1px solid var(--line-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.mark .ic { width: 17px; height: 17px; }
+.mark .ic path:last-child { fill: var(--pass); stroke: none; }
+.brand-name { font-weight: 600; font-size: 14.5px; letter-spacing: -0.012em; }
+.brand-sub { color: var(--text-3); font-size: 13px; white-space: nowrap; }
+.rail-wrap { flex: 1; min-width: 0; display: flex; justify-content: center; overflow-x: auto; scrollbar-width: none; }
+.rail-wrap::-webkit-scrollbar { display: none; }
+.states {
+  display: flex; gap: 2px; list-style: none; margin: 0; padding: 3px; flex: none;
+  background: rgba(255, 255, 255, 0.018); border: 1px solid var(--line); border-radius: 11px;
+}
+.states li {
+  display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 8px;
+  color: var(--text-3); font-size: 12.5px; font-weight: 500; white-space: nowrap;
+  transition: color var(--t-2) var(--ease), background-color var(--t-2) var(--ease);
+}
+.states li .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.45; flex: none; }
+.states li[aria-current="step"] { color: var(--text); background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line-2), 0 1px 2px rgba(0, 0, 0, 0.45); }
+.states li[aria-current="step"] .dot { opacity: 1; background: var(--state-c, var(--text)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-c, var(--text)) 22%, transparent); }
+.states li[data-s="ready"] { --state-c: var(--text); }
+.states li[data-s="running"], .states li[data-s="shrinking"] { --state-c: var(--live); }
+.states li[data-s="pass"] { --state-c: var(--pass); }
+.states li[data-s="fail"] { --state-c: var(--fail); }
+.states li[data-s="inconclusive"] { --state-c: var(--inc); }
+.states li.unbuilt { color: color-mix(in srgb, var(--text-3) 70%, transparent); }
+.states li .tag { height: 17px; padding: 0 5px; font-size: 10.5px; border-style: dashed; background: transparent; color: var(--text-3); }
+.conn {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.018);
+  font: 500 11.5px var(--mono); color: var(--text-2); white-space: nowrap;
+}
+.conn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pass); box-shadow: 0 0 0 3px var(--pass-bg); }
+.conn.file .dot { background: var(--inc); box-shadow: 0 0 0 3px var(--inc-bg); }
+.conn.lost .dot { background: var(--fail); box-shadow: 0 0 0 3px var(--fail-bg); }
+@media (max-width: 1380px) { .brand-sub { display: none; } }
+@media (max-width: 1180px) {
+  .top { position: static; }
+  .top-inner { height: auto; flex-wrap: wrap; padding: 12px 20px; row-gap: 10px; }
+  .conn { margin-left: auto; }
+  .rail-wrap { order: 3; flex-basis: 100%; justify-content: flex-start; }
+}
+
+/* ============ layout ============ */
+main { position: relative; z-index: var(--z-base); max-width: 1440px; margin: 0 auto; padding: 28px var(--sp-6) 96px; display: grid; gap: var(--sp-4); }
+@media (max-width: 760px) { main { padding: 18px 14px 64px; } }
+.panel {
+  position: relative; min-width: 0; background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 20px 24px 22px; box-shadow: var(--shadow-panel);
+}
+@media (max-width: 760px) { .panel { padding: 16px 16px 18px; } }
+/* double bezel: an outer tray holding the inner card, for the main call to action */
+.bezel { padding: 6px; border-radius: var(--r-xl); background: rgba(255, 255, 255, 0.016); border: 1px solid var(--line); min-width: 0; }
+.bezel > .panel { border-radius: 15px; border-color: var(--line-2); }
+.panel-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-bottom: 14px; }
+.card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.card-head .spacer { flex: 1; }
+.eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--text-3); letter-spacing: 0.01em; margin-bottom: 4px; }
+.eyebrow .sep { opacity: 0.6; }
+.eyebrow .mono { font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+
+/* ============ controls ============ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px;
+  border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-2); color: var(--text);
+  font-size: 13.5px; font-weight: 500; letter-spacing: -0.005em; white-space: nowrap; cursor: pointer; user-select: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: background-color var(--t-2) var(--ease), border-color var(--t-2) var(--ease), color var(--t-2) var(--ease), transform var(--t-1) var(--ease), box-shadow var(--t-2) var(--ease);
+}
+.btn:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-3); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+.btn .ic { width: 15px; height: 15px; margin-left: -2px; }
+.btn.primary {
+  background: linear-gradient(180deg, #f5f6f8, #dde0e5); color: #0b0c0e; border-color: rgba(255, 255, 255, 0.55); font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.55), 0 8px 20px -8px rgba(255, 255, 255, 0.22);
+}
+.btn.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffffff, #e8eaee); border-color: #ffffff; }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--text-2); }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+.btn.lg { height: 42px; padding: 0 18px; font-size: 14px; border-radius: 11px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (pointer: coarse) { .btn { height: 44px; } }
+.linkish { background: none; border: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.icon-btn {
+  width: 26px; height: 26px; display: inline-grid; place-items: center; flex: none; padding: 0;
+  border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--text-3); cursor: pointer;
+  transition: background-color var(--t-2) var(--ease), color var(--t-2) var(--ease), opacity var(--t-2) var(--ease);
+}
+.icon-btn .ic { width: 14px; height: 14px; }
+.icon-btn:hover { background: var(--surface-3); color: var(--text); }
+.icon-btn.done { color: var(--pass); }
+@media (pointer: coarse) { .icon-btn { width: 40px; height: 40px; } }
+kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 5px; margin-left: 2px;
+  border-radius: 4px; border: 1px solid var(--line-2); border-bottom-width: 2px; background: var(--surface-2);
+  font-size: 10.5px; color: var(--text-3);
+}
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-size: 12px; font-weight: 500; color: var(--text-3); }
+.field select {
+  appearance: none; -webkit-appearance: none; width: 100%; height: 42px; padding: 0 36px 0 12px;
+  border-radius: 11px; border: 1px solid var(--line-2); color: var(--text); cursor: pointer; text-overflow: ellipsis;
+  background: var(--surface-0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23808893' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+  font: 13px var(--mono);
+  transition: border-color var(--t-2) var(--ease), background-color var(--t-2) var(--ease);
+}
+.field select:hover { border-color: var(--line-3); }
+.field select.warn { border-color: var(--amber-line); }
+
+/* ============ badges, tags, chips ============ */
+.v-PASS { --c: var(--pass); --c-bg: var(--pass-bg); --c-line: var(--pass-line); }
+.v-EXPECTED_INVALIDATION { --c: var(--inv); --c-bg: var(--inv-bg); --c-line: var(--inv-line); }
+.v-STALE_KEPT, .v-WRONGLY_EVICTED, .v-ASSERTION_MISMATCH, .v-FAIL { --c: var(--fail); --c-bg: var(--fail-bg); --c-line: var(--fail-line); }
+.v-INCONCLUSIVE { --c: var(--inc); --c-bg: var(--inc-bg); --c-line: var(--inc-line); }
+.v-SPEC_DIVERGENCE, .t-amber { --c: var(--amber); --c-bg: var(--amber-bg); --c-line: var(--amber-line); }
+.o-interesting { --c: var(--pass); --c-bg: var(--pass-bg); --c-line: var(--pass-line); }
+.o-unresolved { --c: var(--amber); --c-bg: var(--amber-bg); --c-line: var(--amber-line); }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 6px; flex: none;
+  font: 600 10.5px/1 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  color: var(--c, var(--text-2)); background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-2));
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.lg { height: 28px; padding: 0 11px; font-size: 12px; border-radius: 8px; gap: 8px; }
+.pill.lg::before { width: 7px; height: 7px; box-shadow: 0 0 0 3px var(--c-bg, transparent); }
+.tag {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; white-space: nowrap;
+  font: 500 11.5px/1 var(--sans); color: var(--c, var(--text-2)); background: var(--c-bg, var(--surface-3)); border: 1px solid var(--c-line, var(--line-2));
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface-0); font: 12px var(--mono); color: var(--text-2); }
+.chip.removed::before { content: "\2212"; margin-right: 6px; color: var(--fail); }
+.mchip {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.015); font-size: 12px; max-width: 100%;
+}
+.mchip.has-copy { padding-right: 2px; }
+.mchip .k { color: var(--text-3); }
+.mchip .mono { color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mchip .icon-btn { width: 22px; height: 22px; }
+
+/* ============ banners ============ */
+.banner {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; margin: 12px 0; border-radius: 10px;
+  border: 1px solid; font-size: 13.5px; font-weight: 500; line-height: 1.45;
+}
+.banner > .ic { margin-top: 2px; }
+.banner > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.banner.amber { color: #f8d08a; background: var(--amber-bg); border-color: var(--amber-line); }
+.banner.grey { color: var(--text-2); background: var(--inc-bg); border-color: var(--inc-line); }
+.banner.red { color: #ffb4b5; background: var(--fail-bg); border-color: var(--fail-line); }
+.banner.blue { color: #b9dcff; background: var(--inv-bg); border-color: var(--inv-line); }
+main > .banner { margin: 0; }
+
+/* ============ empty state: launcher ============ */
+.hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); padding: 0; overflow: hidden; }
+.hero-main { position: relative; padding: 38px 40px 36px; }
+.hero-main::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: 18px 18px;
+  -webkit-mask-image: radial-gradient(420px 240px at 100% 0%, #000, transparent 75%); mask-image: radial-gradient(420px 240px at 100% 0%, #000, transparent 75%);
+}
+.hero-main > * { position: relative; }
+.hero h2 { font-size: 30px; letter-spacing: -0.026em; line-height: 1.12; max-width: 22ch; }
+.hero .lede { font-size: 15px; color: var(--text-2); max-width: 54ch; margin: 14px 0 26px; }
+.hero-side { padding: 30px 34px; border-left: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 60%); }
+.hero-side h3 { margin-bottom: 6px; }
+.flow { list-style: none; margin: 0; padding: 0; }
+.flow li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.flow li:first-child { border-top: 0; }
+.flow .n { font: 500 11.5px var(--mono); color: var(--text-3); padding-top: 2px; }
+.flow b { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+.flow span:last-child { color: var(--text-3); font-size: 13px; }
+.facts-inline { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 22px; font-size: 12.5px; color: var(--text-3); }
+.facts-inline span { display: inline-flex; align-items: center; gap: 7px; }
+.facts-inline .ic { width: 14px; height: 14px; color: var(--pass); stroke-width: 2; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
+@media (max-width: 920px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-main { padding: 26px 22px; }
+  .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 22px; }
+  .hero h2 { font-size: 25px; }
+}
+
+/* ============ saved results ============ */
+.results-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin: 12px 0; }
+.seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-0); border: 1px solid var(--line); border-radius: 10px; }
+.seg button, .tab {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-3); font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-2) var(--ease), color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease);
+}
+.seg button:hover, .tab:hover { color: var(--text); }
+.seg button[aria-pressed="true"], .tab[aria-selected="true"] { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2), 0 1px 2px rgba(0, 0, 0, 0.4); }
+.seg .count { font: 500 11px var(--mono); color: var(--text-3); }
+.results { display: grid; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-0); }
+.result {
+  position: relative; display: grid; grid-template-columns: 70px minmax(0, 1fr) auto auto 16px; align-items: center; gap: 16px;
+  min-height: 62px; padding: 11px 16px 11px 18px; border: 0; border-top: 1px solid var(--line); background: transparent;
+  text-align: left; cursor: pointer; transition: background-color var(--t-2) var(--ease);
+}
+.result:first-child { border-top: 0; }
+.result:focus-visible { outline-offset: -2px; }
+.result::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; border-radius: 0 2px 2px 0;
+  background: var(--row-c, var(--line-3)); opacity: 0; transition: opacity var(--t-2) var(--ease);
+}
+.result:hover, .result:focus-visible { background: var(--surface-2); }
+.result:hover::before, .result:focus-visible::before { opacity: 1; }
+.result.o-PASS { --row-c: var(--pass); }
+.result.o-FAIL { --row-c: var(--fail); }
+.result.o-INCONCLUSIVE { --row-c: var(--inc); }
+.result .kind { font: 500 10.5px var(--mono); text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); }
+.result .name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-weight: 600; font-size: 14px; }
+.result .path { display: block; margin-top: 3px; font: 12px var(--mono); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result .when { font-size: 12.5px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.result .chev { color: var(--text-3); display: grid; transition: transform var(--t-2) var(--ease), color var(--t-2) var(--ease); }
+.result:hover .chev { transform: translateX(2px); color: var(--text); }
+@media (max-width: 640px) {
+  .result { grid-template-columns: minmax(0, 1fr) auto; }
+  .result .kind, .result .when, .result .chev { display: none; }
+}
+.empty-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--text-2); }
+.empty-note b { display: block; color: var(--text); font-weight: 600; }
+.empty-note p { margin: 0; }
+
+/* ============ ready: composer + bento ============ */
+.status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pass); flex: none; box-shadow: 0 0 0 4px var(--pass-bg), 0 0 14px rgba(70, 211, 151, 0.45); }
+.composer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+@media (max-width: 860px) { .composer { grid-template-columns: minmax(0, 1fr); } }
+.bento { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.bento .span-rows { grid-row: span 2; }
+@media (max-width: 980px) { .bento { grid-template-columns: minmax(0, 1fr); } .bento .span-rows { grid-row: auto; } }
+.score { display: flex; align-items: center; gap: 14px; padding: 6px 0 14px; }
+.bignum { font: 600 34px/1 var(--sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tone-pass { color: var(--pass); }
+.tone-fail { color: var(--fail); }
+.tone-amber { color: var(--amber); }
+.tone-live { color: var(--live); }
+dl.kv { display: grid; grid-template-columns: minmax(84px, max-content) minmax(0, 1fr); margin: 4px 0 0; font-size: 13px; }
+dl.kv dt, dl.kv dd { margin: 0; padding: 8px 0; border-top: 1px solid var(--line); }
+dl.kv dt:first-of-type, dl.kv dt:first-of-type + dd { border-top: 0; }
+dl.kv dt { color: var(--text-3); padding-right: 18px; }
+dl.kv dd { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; }
+dl.kv dd .v { min-width: 0; overflow-wrap: anywhere; }
+dl.kv dd .icon-btn { margin: -4px -4px -4px 0; opacity: 0; }
+dl.kv dd:hover .icon-btn, dl.kv dd .icon-btn:focus-visible, dl.kv dd .icon-btn.done { opacity: 1; }
+@media (hover: none) { dl.kv dd .icon-btn { opacity: 1; } }
+ul.checks { list-style: none; margin: 4px 0 0; padding: 0; }
+ul.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+ul.checks li:first-child { border-top: 0; }
+ul.checks b { display: block; font-weight: 500; font-size: 12.5px; color: var(--text); }
+ul.checks .muted { font-size: 12.5px; overflow-wrap: anywhere; }
+.ck { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; margin-top: 1px; }
+.ck .ic { width: 12px; height: 12px; stroke-width: 2.4; }
+.ck.ok { color: var(--pass); background: var(--pass-bg); box-shadow: inset 0 0 0 1px var(--pass-line); }
+.ck.no { color: var(--fail); background: var(--fail-bg); box-shadow: inset 0 0 0 1px var(--fail-line); }
+.ck.unk { color: var(--inc); background: var(--inc-bg); box-shadow: inset 0 0 0 1px var(--inc-line); }
+
+/* ============ running / shrinking HUD ============ */
+.live-dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--live); flex: none; box-shadow: 0 0 12px rgba(116, 184, 255, 0.6); }
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1.5px solid var(--live); animation: ping 1.6s var(--ease-out) var(--ph, 0ms) infinite; }
+}
+@keyframes ping { 0% { transform: scale(0.45); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
+.runs-track { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 4px 0 16px; }
+@media (max-width: 640px) { .runs-track { grid-template-columns: minmax(0, 1fr); } }
+.rt { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-0); display: grid; gap: 8px; }
+.rt.active { border-color: rgba(116, 184, 255, 0.32); background: linear-gradient(180deg, rgba(116, 184, 255, 0.05), transparent), var(--surface-0); }
+.rt-head { display: flex; align-items: center; gap: 8px; }
+.rt-name { font-weight: 600; font-size: 13.5px; }
+.rt-state { margin-left: auto; font-size: 12px; color: var(--live); }
+.rt-state.faint { color: var(--text-3); }
+.rt .pill { margin-left: auto; }
+.rt-sub { font: 12px var(--mono); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meter { height: 4px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.meter > i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--live); transform-origin: left; transform: scaleX(var(--p, 0)); }
+.rt.done .meter > i { background: var(--text-3); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; margin: 14px 0; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.stat { background: var(--surface-1); padding: 14px 16px 15px; display: grid; gap: 5px; align-content: start; min-width: 0; }
+.stat b { font: 600 24px/1.15 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat b.mono { font: 500 15px/1.35 var(--mono); letter-spacing: 0; }
+.stat > span { color: var(--text-3); font-size: 12.5px; }
+.stat .meter { margin-top: 4px; }
+.strip { display: flex; flex-wrap: wrap; margin: 10px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-0); }
+.strip > div { flex: 1 1 auto; display: grid; gap: 4px; align-content: start; padding: 10px 16px; border-right: 1px solid var(--line); min-width: 0; }
+.strip > div:last-child { border-right: 0; }
+.strip .k { font-size: 11.5px; color: var(--text-3); }
+.strip .val { font: 500 13px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.strip .bad .val { color: var(--fail); }
+.strip .arrow { flex: 0 0 auto; display: grid; place-items: center; padding: 0 2px; color: var(--text-3); }
+.budget { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 16px 0 4px; }
+@media (max-width: 640px) { .budget { grid-template-columns: minmax(0, 1fr); } }
+.budget-row { display: grid; gap: 8px; font-size: 13px; }
+.budget-row .row { gap: 6px; }
+.now { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 12px 0; border-radius: 10px; background: rgba(116, 184, 255, 0.05); border: 1px solid rgba(116, 184, 255, 0.18); font: 12.5px var(--mono); color: #c4e1ff; }
+.now .live-dot { width: 8px; height: 8px; }
+
+/* ============ tables ============ */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-0); margin: 10px 0; }
+table.plain { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.plain th, table.plain td { padding: 9px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
+table.plain thead th { border-top: 0; font-size: 11.5px; font-weight: 500; color: var(--text-3); background: var(--surface-1); white-space: nowrap; }
+table.plain tbody th { font-weight: 500; color: var(--text-2); white-space: nowrap; }
+table.plain .r { text-align: right; }
+table.plain td.reason { color: var(--text-3); max-width: 56ch; }
+table.plain tr.reduced th, table.plain tr.reduced td { color: var(--text); font-weight: 600; }
+table.plain .ic { color: var(--text-3); vertical-align: -3px; }
+table.bare { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.bare th, table.bare td { padding: 5px 0; text-align: left; border-top: 1px solid var(--line); }
+table.bare tr:first-child > * { border-top: 0; }
+table.bare th { color: var(--text-3); font-weight: 500; padding-right: 14px; white-space: nowrap; }
+table.bare td { overflow-wrap: anywhere; }
+
+/* ============ result summary ============ */
+.summary { padding: 22px 28px 24px 30px; overflow: hidden; }
+.summary::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent-c); }
+.summary::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(640px 240px at 0% 0%, color-mix(in srgb, var(--accent-c) 10%, transparent), transparent 72%); }
+.summary > * { position: relative; z-index: 1; }
+.summary.s-pass { --accent-c: var(--pass); }
+.summary.s-fail { --accent-c: var(--fail); }
+.summary.s-inconclusive { --accent-c: var(--inc); }
+.sum-top { display: flex; align-items: flex-start; gap: 12px; }
+.sum-top .eyebrow { flex-wrap: wrap; margin-top: 8px; }
+.sum-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin: 2px 0 14px; }
+.sum-title h2 { font-size: 28px; letter-spacing: -0.024em; }
+.sum-title .exit { font: 500 12px var(--mono); color: var(--text-3); }
+.meta-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.actions { margin-top: 18px; }
+.pass-line { display: flex; align-items: center; gap: 16px; margin: 14px 0 6px; flex-wrap: wrap; }
+.pass-line b { display: block; font-weight: 600; margin-bottom: 6px; }
+.pass-line .chips code { font-size: 11.5px; }
+.section-k { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 16px 0 0; }
+ul.facts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+ul.facts li { position: relative; padding-left: 16px; color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
+ul.facts li::before { content: ""; position: absolute; left: 4px; top: 0.62em; width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); }
+ul.facts.missing li::before { background: var(--inc); box-shadow: 0 0 0 3px var(--inc-bg); }
+
+/* ============ reduction ============ */
+.reduce { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 28px; align-items: center; margin: 4px 0 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-0); }
+@media (max-width: 640px) { .reduce { grid-template-columns: minmax(0, 1fr); } }
+.reduce-num { display: flex; align-items: baseline; gap: 10px; font: 600 40px/1 var(--sans); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.reduce-num .from { color: var(--text-3); font-weight: 500; }
+.reduce-num .ic { width: 22px; height: 22px; align-self: center; color: var(--text-3); stroke-width: 2; }
+.reduce-num .unit { font: 500 13px var(--sans); letter-spacing: 0; color: var(--text-3); }
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 64px minmax(0, 1fr) 28px; align-items: center; gap: 10px; font-size: 12px; color: var(--text-3); }
+.bar .track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.bar .track i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--text-3); transform-origin: left; transform: scaleX(var(--p, 0)); }
+.bar.strong { color: var(--text); }
+.bar.strong .track i { background: linear-gradient(90deg, #dfe3e8, #ffffff); }
+.bar .mono { text-align: right; }
+.claim { font-weight: 600; color: var(--text); }
+.meta-line { font: 12px var(--mono); color: var(--text-3); margin-top: 14px; overflow-wrap: anywhere; }
+
+/* ============ timeline workspace ============ */
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: var(--sp-4); align-items: start; }
+@media (max-width: 1180px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+.tabs { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-0); border: 1px solid var(--line); border-radius: 10px; }
+.tab .d { width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--text-3)); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 12px; font-size: 12px; color: var(--text-3); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 11px; height: 11px; border-radius: 3px; background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-3)); }
+.legend i.dash { border-style: dashed; background: transparent; }
+.grid-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-0); }
+table.timeline { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+table.timeline th, table.timeline td { padding: 6px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
+table.timeline tbody tr:last-child > * { border-bottom: 0; }
+table.timeline thead th {
+  padding: 11px 8px 10px; vertical-align: bottom; white-space: nowrap; font-weight: 500; font-size: 12px;
+  background: var(--surface-1); border-bottom: 1px solid var(--line-2);
+}
+table.timeline thead th .mono { display: block; font-size: 12px; font-weight: 500; color: var(--text); }
+table.timeline thead th .sub { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: var(--text-3); }
+table.timeline thead th.corner { position: sticky; left: 0; z-index: var(--z-sticky); color: var(--text-3); padding-left: 14px; border-right: 1px solid var(--line); }
+table.timeline thead th.cp { box-shadow: inset 0 2px 0 rgba(116, 184, 255, 0.55); }
+table.timeline thead th.cp .sub { color: #9ccbff; }
+table.timeline thead th.is-sel-col .mono { color: var(--hi); }
+table.timeline thead th.is-sel-col { box-shadow: inset 0 -2px 0 var(--ring); }
+table.timeline thead th.cp.is-sel-col { box-shadow: inset 0 2px 0 rgba(116, 184, 255, 0.55), inset 0 -2px 0 var(--ring); }
+table.timeline tbody th {
+  position: sticky; left: 0; z-index: var(--z-base); padding: 0 18px 0 14px; white-space: nowrap;
+  font: 500 12.5px var(--mono); color: var(--text-2); background: var(--surface-0); border-right: 1px solid var(--line);
+  transition: color var(--t-2) var(--ease);
+}
+table.timeline tr.is-sel > th { color: var(--hi); background: linear-gradient(90deg, rgba(124, 192, 255, 0.1), transparent 85%), var(--surface-0); box-shadow: inset 2px 0 0 var(--ring); }
+table.timeline td { min-width: 168px; }
+table.timeline .cp { background-color: rgba(116, 184, 255, 0.028); }
+table.timeline td.is-sel-col { background-color: rgba(124, 192, 255, 0.045); }
+table.timeline th.sc, table.timeline td.sc { min-width: 136px; }
+table.timeline th.thin, table.timeline td.thin { min-width: 60px; width: 60px; }
+table.timeline th.thin .mono, table.timeline th.thin .sub { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+table.timeline th.thin .mono { color: var(--text-3); }
+/* the span in which a tx row has observations: a faint lane after its submission */
+table.timeline td.lane { background-image: linear-gradient(var(--line-3), var(--line-3)); background-size: 100% 1px; background-repeat: no-repeat; background-position: center; }
+.cell {
+  position: relative; width: 100%; min-height: 48px; display: grid; gap: 3px; align-content: center;
+  padding: 6px 10px 6px 14px; border-radius: 9px; text-align: left; cursor: pointer;
+  color: var(--c, var(--text-3)); background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-2));
+  transition: border-color var(--t-2) var(--ease), background-color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease), transform var(--t-1) var(--ease);
+}
+.cell::before { content: ""; position: absolute; left: 5px; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: currentColor; opacity: 0.85; }
+.cell:hover { border-color: color-mix(in srgb, var(--c, var(--text-3)) 55%, transparent); }
+.cell:active { transform: scale(0.98); }
+.cell .fate { font: 500 12.5px var(--mono); color: var(--text); white-space: nowrap; }
+.cell .meta { display: flex; align-items: baseline; gap: 6px; font-size: 11px; white-space: nowrap; overflow: hidden; }
+.cell .meta .aid { font: 600 10.5px var(--mono); letter-spacing: 0.02em; }
+.cell .meta .vl { overflow: hidden; text-overflow: ellipsis; }
+.cell.submit::before, .cell.obs::before { background: var(--line-3); opacity: 1; }
+.cell.empty { border-style: dashed; background: transparent; }
+.cell.empty .fate { color: var(--text-3); }
+.cell[aria-pressed="true"] { border-color: transparent; box-shadow: 0 0 0 1.5px var(--hi), 0 0 0 5px rgba(255, 255, 255, 0.07), 0 6px 18px -6px rgba(0, 0, 0, 0.7); }
+.matrix-foot { margin: 10px 0 0; }
+
+/* ============ inspector ============ */
+.detail { position: sticky; top: calc(var(--top-h) + 16px); max-height: calc(100dvh - var(--top-h) - 32px); overflow: auto; padding: 0; overscroll-behavior: contain; }
+@media (max-width: 1180px) { .detail { position: relative; top: auto; max-height: none; } }
+.detail-head { position: sticky; top: 0; z-index: var(--z-sticky); padding: 16px 20px 14px; background: rgba(17, 19, 23, 0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.detail-head h3 { font: 600 15px var(--mono); letter-spacing: 0; }
+.detail-body { padding: 6px 20px 22px; }
+.detail-empty { display: grid; place-items: center; gap: 10px; min-height: 240px; padding: 28px; text-align: center; color: var(--text-3); }
+.detail-empty .ic { width: 22px; height: 22px; }
+.detail-empty p { max-width: 30ch; margin: 0; }
+.ba { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 6px; align-items: stretch; margin: 16px 0; }
+.ba > div { display: grid; gap: 3px; align-content: start; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-0); min-width: 0; }
+.ba > .after { background: var(--c-bg, var(--surface-0)); border-color: var(--c-line, var(--line-2)); }
+.ba .label { font-size: 11px; color: var(--text-3); }
+.ba .val { font: 500 13.5px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.ba > .after .val { color: var(--c, var(--text)); }
+.ba .raw { font: 11.5px var(--mono); color: var(--text-3); }
+.ba .arrow { display: grid; place-items: center; color: var(--text-3); padding: 0; border: 0; background: none; }
+.assert-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 20px; }
+.assert-head b { font: 600 13.5px var(--mono); }
+.expect { margin: 8px 0 0; font: 12.5px var(--mono); color: var(--text-2); }
+.rule .row b { font: 600 12.5px var(--mono); }
+blockquote { margin: 10px 0; padding: 12px 14px 12px 16px; border-left: 2px solid var(--line-3); border-radius: 0 10px 10px 0; background: var(--surface-0); font-size: 13px; line-height: 1.6; color: var(--text); }
+blockquote cite { display: block; margin-top: 8px; font: normal 11.5px var(--mono); color: var(--text-3); overflow-wrap: anywhere; }
+pre {
+  margin: 8px 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: #08090b;
+  font-size: 12px; line-height: 1.6; color: #c9ced6; overflow: auto; max-height: 360px; tab-size: 2;
+}
+pre.log { max-height: 260px; color: #b7bdc6; }
+details.disclose { border-top: 1px solid var(--line); margin-top: 14px; }
+details.disclose > summary {
+  display: flex; align-items: center; gap: 10px; min-height: 40px; list-style: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text-2); transition: color var(--t-2) var(--ease);
+}
+details.disclose > summary::-webkit-details-marker { display: none; }
+details.disclose > summary::before {
+  content: ""; width: 6px; height: 6px; flex: none; margin: 0 2px 0 3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform var(--t-2) var(--ease);
+}
+details.disclose[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+details.disclose > summary:hover { color: var(--text); }
+details.disclose > summary h3 { color: var(--text); }
+.panel > details.disclose:first-child { border-top: 0; margin-top: 0; }
+.detail-body details.disclose { margin-top: 12px; }
+
+/* ============ loading ============ */
+.skeleton { height: 10px; margin: 12px 0; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 40%, var(--surface-2) 80%); background-size: 200% 100%; }
+@media (prefers-reduced-motion: no-preference) { .skeleton { animation: shimmer 1.4s linear var(--ph, 0ms) infinite; } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ============ entrance: only when the view changes, never on a poll re-render ============ */
+@media (prefers-reduced-motion: no-preference) {
+  main.enter > * { animation: rise var(--t-3) var(--ease-out) both; }
+  main.enter > *:nth-child(2) { animation-delay: 40ms; }
+  main.enter > *:nth-child(3) { animation-delay: 80ms; }
+  main.enter > *:nth-child(n+4) { animation-delay: 120ms; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 </style>
 </head>
 <body>
 <header class="top">
-  <div class="brand">FrameLab<span>release check for alt-mempool nodes · local only</span></div>
-  <ol class="states" id="states" aria-label="Workbench state"></ol>
+  <div class="top-inner">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M10 9.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg></span>
+      <span class="brand-name">FrameLab</span>
+      <span class="brand-sub">release check for alt-mempool nodes · local only</span>
+    </div>
+    <div class="rail-wrap"><ol class="states" id="states" aria-label="Workbench state"></ol></div>
+    <div class="conn" id="conn"></div>
+  </div>
 </header>
 <main id="app"></main>
 <script>
@@ -151,7 +594,8 @@ const STATES = [
   ["fail", "Fail"], ["shrinking", "Shrinking"], ["inconclusive", "Inconclusive"], ["divergence", "Spec divergence"],
 ];
 const MISMATCH = ["STALE_KEPT", "WRONGLY_EVICTED", "ASSERTION_MISMATCH"];
-const ui = { mode: "server", server: null, view: null, run: 1, sel: null, showRaw: false, error: null, notice: null, watching: null, pending: null, open: {}, lastSig: "" };
+const OPEN_BY_DEFAULT = new Set(["run-log", "shrink-log"]);
+const ui = { mode: "server", server: null, view: null, run: 1, sel: null, showRaw: false, error: null, notice: null, watching: null, pending: null, open: {}, lastSig: "", filter: "all", lastKey: "" };
 
 // ---------- DOM helper: every piece of evidence goes in as text, never as HTML ----------
 function h(tag, props, ...children) {
@@ -169,19 +613,77 @@ function h(tag, props, ...children) {
   }
   return el;
 }
+// Icons are fixed path data built with createElementNS: no markup strings anywhere.
+const SVGNS = "http://www.w3.org/2000/svg";
+const ICONS = {
+  power: ["M12 3.5v7.5", "M6.6 6.6a7.5 7.5 0 1 0 10.8 0"],
+  play: ["M8 5.8v12.4a.8.8 0 0 0 1.2.7l10-6.2a.8.8 0 0 0 0-1.4l-10-6.2A.8.8 0 0 0 8 5.8z"],
+  stop: ["M7.5 6.5h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"],
+  shrink: ["M4 14h6v6", "M20 10h-6V4", "M14 10l6.5-6.5", "M3.5 20.5 10 14"],
+  download: ["M12 4v11", "M7.5 10.5 12 15l4.5-4.5", "M5 19.5h14"],
+  folder: ["M3.5 7A1.5 1.5 0 0 1 5 5.5h4.2l2 2.2H19a1.5 1.5 0 0 1 1.5 1.5v8.3A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"],
+  x: ["M6.5 6.5l11 11", "M17.5 6.5l-11 11"],
+  check: ["M5 12.5l4.5 4.5L19 7.5"],
+  alert: ["M12 4.2 2.9 19.5h18.2z", "M12 10v4.2", "M12 17.1v.1"],
+  info: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z", "M12 11v5.2", "M12 7.9v.1"],
+  question: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z", "M9.7 9.4a2.4 2.4 0 0 1 4.6 1c0 1.6-2.3 2-2.3 3.4", "M12 16.9v.1"],
+  chevron: ["M9.5 6l6 6-6 6"],
+  external: ["M14 4.5h5.5V10", "M19.5 4.5 11 13", "M17.5 14v4.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1H10"],
+  copy: ["M9 8.5h9.5a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z", "M5 15.5h-.5a.5.5 0 0 1-.5-.5V5a1 1 0 0 1 1-1h9.5a.5.5 0 0 1 .5.5V5"],
+  eye: ["M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z", "M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"],
+  arrow: ["M5 12h14", "M13.5 6.5 19 12l-5.5 5.5"],
+  pointer: ["M6 4.5l12 6.2-5.3 1.6L10.9 18z"],
+};
+function icon(name) {
+  const s = document.createElementNS(SVGNS, "svg");
+  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "ic"); s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false");
+  for (const d of ICONS[name]) { const p = document.createElementNS(SVGNS, "path"); p.setAttribute("d", d); s.append(p); }
+  return s;
+}
 const last = (arr, pred) => { for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) return arr[i]; return undefined; };
 const short = (s, n = 10) => (typeof s === "string" && s.length > n + 6 ? `${s.slice(0, n)}…${s.slice(-4)}` : s ?? "");
 const secs = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const label = (v) => String(v).replace(/_/g, " ");
-const pill = (v) => h("span", { class: `pill v-${v}` }, label(v));
+const pill = (v, size) => h("span", { class: `pill v-${v}${size ? ` ${size}` : ""}` }, label(v));
 const jsonl = (t) => (t || "").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const pretty = (x) => JSON.stringify(x, null, 2);
+const iso = (ms) => `${new Date(ms).toISOString().replace("T", " ").slice(0, 19)} UTC`;
+function ago(ms) {
+  const d = Date.now() - ms;
+  if (d < 45000) return "just now";
+  const m = Math.round(d / 60000); if (m < 60) return `${m} min ago`;
+  const hr = Math.round(m / 60); if (hr < 24) return `${hr} h ago`;
+  return `${Math.round(hr / 24)} d ago`;
+}
+/** Keeps a looping animation's phase steady when its element is rebuilt by a re-render. */
+const phase = (period) => `--ph:-${Date.now() % period}ms`;
 /** <details> that stays open across re-renders. */
 function det(id, summary, ...content) {
-  if (!(id in ui.open)) ui.open[id] = false;
-  return h("details", { open: ui.open[id], ontoggle: (e) => { ui.open[id] = e.target.open; } }, h("summary", null, summary), ...content);
+  if (!(id in ui.open)) ui.open[id] = OPEN_BY_DEFAULT.has(id);
+  return h("details", { class: "disclose", open: ui.open[id], ontoggle: (e) => { ui.open[id] = e.target.open; } }, h("summary", null, summary), ...content);
 }
+function banner(kind, ...children) {
+  return h("div", { class: `banner ${kind}`, role: kind === "red" ? "alert" : null }, icon(kind === "amber" || kind === "red" ? "alert" : "info"), h("div", null, ...children));
+}
+function copyBtn(text, what) {
+  return h("button", { class: "icon-btn", type: "button", title: `Copy ${what}`, "aria-label": `Copy ${what}`, onclick: async (e) => {
+    const b = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(text);
+      b.classList.add("done"); b.replaceChildren(icon("check"));
+      setTimeout(() => { b.classList.remove("done"); b.replaceChildren(icon("copy")); }, 1200);
+    } catch { b.title = "The browser blocked clipboard access"; }
+  } }, icon("copy"));
+}
+/** A dt/dd pair; the value is text, optionally mono, optionally copyable in full. */
+function kv(term, value, opts = {}) {
+  return [h("dt", null, term), h("dd", null, h("span", { class: `v${opts.mono ? " mono" : ""}`, title: opts.title || null }, value), opts.copy ? copyBtn(opts.copy, term) : null)];
+}
+function metaChip(k, value, copy) {
+  return h("span", { class: `mchip${copy ? " has-copy" : ""}` }, h("span", { class: "k" }, k), h("span", { class: "mono", title: copy || null }, value), copy ? copyBtn(copy, k) : null);
+}
+const stat = (value, text, tone, attrs) => h("div", { class: "stat" }, h("b", { ...(attrs || {}), class: [attrs?.class, tone ? `tone-${tone}` : null].filter(Boolean).join(" ") || null }, value), h("span", null, text));
 
 // ---------- server API ----------
 async function api(method, url, body) {
@@ -214,7 +716,7 @@ async function openDir(dir) {
   render();
 }
 function setView(model) {
-  ui.view = model; ui.run = model.runs[0]?.k ?? 1; ui.showRaw = false; ui.sel = defaultSelection(model);
+  ui.view = model; ui.run = model.runs[0]?.k ?? 1; ui.showRaw = false; ui.sel = defaultSelection(model); ui.scrollSel = true;
 }
 function mapName(p) {
   const direct = ["verdicts.json", "manifest.json", "reduction.json", "node_pin.json", "compare.json", "scenario.original.yaml", "scenario.min.yaml", "README.md", "rule_pack.json", "events.run1.jsonl", "events.run2.jsonl"];
@@ -277,31 +779,58 @@ function currentState() {
 function renderStates(state) {
   const ol = document.getElementById("states");
   ol.replaceChildren(...STATES.map(([id, name]) =>
-    h("li", { "aria-current": id === state ? "step" : null, class: id === "divergence" ? "unbuilt" : null, title: id === "divergence" ? "Not built: needs a second compatible rule pack (SHOULD)" : null },
-      name, id === "divergence" ? " (not built)" : "")));
+    h("li", { "aria-current": id === state ? "step" : null, class: id === "divergence" ? "unbuilt" : null, "data-s": id, title: id === "divergence" ? "Not built: needs a second compatible rule pack (SHOULD)" : null },
+      h("span", { class: "dot", "aria-hidden": "true" }), name, id === "divergence" ? [" ", h("span", { class: "tag" }, "(not built)")] : null)));
+  // On narrow screens the rail scrolls sideways: keep the current state in view (the rail only, never the page).
+  const wrap = ol.parentElement, cur = ol.querySelector("[aria-current]");
+  if (cur && wrap.scrollWidth > wrap.clientWidth && (cur.offsetLeft < wrap.scrollLeft || cur.offsetLeft + cur.offsetWidth > wrap.scrollLeft + wrap.clientWidth)) {
+    wrap.scrollLeft = cur.offsetLeft - (wrap.clientWidth - cur.offsetWidth) / 2;
+  }
+  const conn = document.getElementById("conn");
+  const [cls, text, tip] = ui.mode === "file" ? ["file", "file · read only", "Opened as a file: saved bundles only, nothing is uploaded"]
+    : ui.error ? ["lost", "server unreachable", "Lost contact with the FrameLab server"]
+    : ["ok", location.host || "local", "Served from this machine; bundles open without any upload"];
+  if (conn.dataset.k !== cls + text) {
+    conn.dataset.k = cls + text; conn.className = `conn ${cls}`; conn.title = tip;
+    conn.replaceChildren(h("span", { class: "dot", "aria-hidden": "true" }), text);
+  }
 }
 
 // ---------- views ----------
 function noticeBar() {
   if (!ui.notice) return null;
-  return h("div", { class: `banner ${ui.notice.kind === "error" ? "red" : "grey"}`, role: ui.notice.kind === "error" ? "alert" : "status" },
-    ui.notice.text, " ", h("button", { class: "linkish", onclick: () => { ui.notice = null; render(); } }, "Dismiss"));
+  const err = ui.notice.kind === "error";
+  return h("div", { class: `banner ${err ? "red" : "blue"}`, role: err ? "alert" : "status" }, icon(err ? "alert" : "info"),
+    h("div", null, ui.notice.text), h("button", { class: "linkish", onclick: () => { ui.notice = null; render(); } }, "Dismiss"));
 }
 
+const KINDS = [["all", "All"], ["run", "Runs"], ["shrink", "Shrinks"], ["bundle", "Bundles"]];
 function resultsList(results) {
-  if (!results?.length) return h("p", { class: "muted" }, "No saved results yet. Bundles appear here after Export.");
-  return h("div", { class: "results" }, results.map((r) =>
-    h("button", { class: "result", onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${r.overall}` },
-      h("span", { class: "kind" }, r.kind),
-      h("span", null, h("b", null, r.scenario), " ", r.injected ? h("span", { class: "pill v-SPEC_DIVERGENCE" }, "injected regression") : null, r.negative ? h("span", { class: "pill v-INCONCLUSIVE" }, "negative test") : null,
-        h("span", { class: "muted small mono", style: "display:block" }, r.dir)),
-      h("span", { class: `pill v-${r.overall}` }, r.overall))));
+  if (!results?.length) return h("div", { class: "empty-note" }, icon("folder"), h("div", null, h("b", null, "No saved results yet"), h("p", { class: "faint small" }, "Bundles appear here after Export; runs and shrinks after they finish.")));
+  const counts = Object.fromEntries(KINDS.map(([k]) => [k, k === "all" ? results.length : results.filter((r) => r.kind === k).length]));
+  const f = counts[ui.filter] ? ui.filter : "all";
+  const shown = f === "all" ? results : results.filter((r) => r.kind === f);
+  return h("div", null,
+    h("div", { class: "results-head" },
+      h("div", { class: "seg", role: "group", "aria-label": "Filter saved results" }, KINDS.filter(([k]) => counts[k]).map(([k, name]) =>
+        h("button", { type: "button", "aria-pressed": f === k ? "true" : "false", onclick: () => { ui.filter = k; render(); } }, name, h("span", { class: "count" }, counts[k])))),
+      h("span", { class: "spacer" }),
+      h("span", { class: "faint small" }, "Newest first, from bundles/ and .runs/")),
+    h("div", { class: "results" }, shown.map((r) =>
+      h("button", { class: `result o-${r.overall}`, onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${r.overall}` },
+        h("span", { class: "kind" }, r.kind),
+        h("span", null,
+          h("span", { class: "name" }, r.scenario, r.injected ? h("span", { class: "tag t-amber" }, "injected regression") : null, r.negative ? h("span", { class: "tag" }, "negative test") : null),
+          h("span", { class: "path" }, r.dir)),
+        h("span", { class: "when", title: iso(r.mtime) }, ago(r.mtime)),
+        pill(r.overall),
+        h("span", { class: "chev" }, icon("chevron"))))));
 }
-function folderPicker() {
+function folderPicker(extra) {
   const id = "folder-input";
   return h("span", null,
-    h("label", { for: id, class: "btn", style: "display:inline-flex;align-items:center", tabindex: "0", onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.getElementById(id).click(); } } }, "Open bundle folder…"),
-    h("input", { id, type: "file", webkitdirectory: true, multiple: true, class: "sr-only", onchange: (e) => openFolder([...e.target.files]) }));
+    h("label", { for: id, class: `btn${extra ? ` ${extra}` : ""}`, role: "button", tabindex: "0", onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.getElementById(id).click(); } } }, icon("folder"), "Open bundle folder…"),
+    h("input", { id, type: "file", webkitdirectory: true, multiple: true, class: "sr-only", tabindex: "-1", onchange: (e) => openFolder([...e.target.files]) }));
 }
 
 function viewEmpty() {
@@ -309,20 +838,31 @@ function viewEmpty() {
   const env = s?.env;
   const starting = env?.status === "starting" || ui.pending === "env";
   const failed = env?.status === "stopped" && env.exit_code !== 0;
-  return [
-    h("section", { class: "panel" },
-      h("h2", null, "No target yet"),
-      ui.mode === "file"
-        ? h("p", null, "This page is open without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout.")
-        : h("p", null, "Start the pinned local stack (ethrex + sidecar on 127.0.0.1) to check pins and capabilities, then run a scenario."),
+  const server = ui.mode === "server";
+  const hero = h("div", { class: "bezel" }, h("section", { class: "panel hero" },
+    h("div", { class: "hero-main" },
+      h("div", { class: "eyebrow" }, starting ? h("span", { class: "live-dot", style: phase(1600), "aria-hidden": "true" }) : h("span", { class: "dot", "aria-hidden": "true" }), starting ? "Starting local network" : "No target yet"),
+      h("h2", null, "Release-check an alt-mempool node against its written policy"),
+      server
+        ? h("p", { class: "lede" }, "Start the pinned local stack (ethrex + sidecar on 127.0.0.1) to check pins and capabilities, then run a scenario.")
+        : h("p", { class: "lede" }, "This page is open without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout."),
       h("div", { class: "row" },
-        ui.mode === "server" ? h("button", { class: "btn primary", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, starting ? "Starting local network…" : "Start local network") : null,
-        folderPicker()),
-      starting ? h("div", { "aria-hidden": "true" }, h("div", { class: "skeleton", style: "width:60%" }), h("div", { class: "skeleton", style: "width:40%" })) : null,
-      failed ? h("div", { class: "banner red", role: "alert" }, `The local network stopped (exit ${env.exit_code}). Check Docker, then try again.`) : null,
-      env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log" }, env.log.join("\n"))) : null),
-    ui.mode === "server" ? h("section", { class: "panel" }, h("h3", null, "Open a saved result"), resultsList(s?.results)) : null,
-  ];
+        server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, icon("power"), starting ? "Starting local network…" : "Start local network") : null,
+        folderPicker("lg")),
+      starting ? h("div", { "aria-hidden": "true" }, h("div", { class: "skeleton", style: `width:62%;${phase(1400)}` }), h("div", { class: "skeleton", style: `width:38%;${phase(1400)}` })) : null,
+      failed ? banner("red", `The local network stopped (exit ${env.exit_code}). Check Docker, then try again.`) : null,
+      env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log" }, env.log.join("\n"))) : null,
+      h("div", { class: "facts-inline" },
+        h("span", null, icon("check"), "Binds to 127.0.0.1 only"),
+        h("span", null, icon("check"), "Bundles open without upload"),
+        h("span", null, icon("check"), "Two fresh stacks per run"))),
+    h("div", { class: "hero-side" },
+      h("h3", null, "How a check works"),
+      h("ol", { class: "flow" },
+        h("li", null, h("span", { class: "n" }, "01"), h("span", null, h("b", null, "Start"), h("span", null, "Pins, rule-pack quotes and capabilities are checked before anything runs."))),
+        h("li", null, h("span", { class: "n" }, "02"), h("span", null, h("b", null, "Run twice"), h("span", null, "Each scenario runs on two fresh stacks. A failure counts only if both runs agree."))),
+        h("li", null, h("span", { class: "n" }, "03"), h("span", null, h("b", null, "Shrink and export"), h("span", null, "A reproducible mismatch is cut down to a smaller case and saved as a replayable bundle.")))))));
+  return [hero, server ? h("section", { class: "panel" }, h("h3", null, "Open a saved result"), resultsList(s?.results)) : null];
 }
 
 function viewReady() {
@@ -330,38 +870,62 @@ function viewReady() {
   const info = s.env.info;
   const scenarios = s.scenarios || [];
   const builds = s.builds || [];
-  const scenarioSel = h("select", { id: "scenario", onchange: (e) => { ui.lastScenario = e.target.value; } }, scenarios.map((f) => h("option", { value: f, selected: f === (ui.lastScenario || "scenarios/s1-payer-drop.yaml") ? true : null }, f)));
-  const buildSel = h("select", { id: "build", onchange: (e) => { ui.lastBuild = e.target.value; } }, builds.map((b) => h("option", { value: b.id, selected: b.id === (ui.lastBuild || "observe") ? true : null }, b.patches.length ? `${b.label}: LOCAL INJECTED REGRESSION (${b.patches.join(", ")})` : `${b.label}: pinned sidecar + observe patch`)));
+  const wantScenario = ui.lastScenario || "scenarios/s1-payer-drop.yaml";
+  const wantBuild = ui.lastBuild || "observe";
+  const scenarioSel = h("select", { id: "scenario", onchange: (e) => { ui.lastScenario = e.target.value; } }, scenarios.map((f) => h("option", { value: f, selected: f === wantScenario ? true : null }, f)));
+  const injectedPick = (builds.find((b) => b.id === wantBuild)?.patches.length ?? 0) > 0;
+  const buildSel = h("select", { id: "build", class: injectedPick ? "warn" : null, onchange: (e) => { ui.lastBuild = e.target.value; render(); } }, builds.map((b) => h("option", { value: b.id, selected: b.id === wantBuild ? true : null }, b.patches.length ? `${b.label}: LOCAL INJECTED REGRESSION (${b.patches.join(", ")})` : `${b.label}: pinned sidecar + observe patch`)));
   const rp = info.rule_pack;
+  const eth = info.pins.ethrex, sc = info.pins.sidecar;
+  const quotesOk = rp.quotes_verified === rp.quotes;
+  const caps = Object.entries(info.capabilities);
+  const capOk = (v) => String(v).startsWith("ok");
   return [
     h("section", { class: "panel" },
-      h("div", { class: "row" }, h("h2", null, "Local network ready"), h("span", { class: "spacer" }),
-        h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, "Stop network")),
-      h("p", { class: "muted" }, info.note),
-      h("div", { class: "workspace", style: "grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))" },
-        h("div", null, h("h4", null, "Pins"), h("dl", { class: "kv" },
-          h("dt", null, "ethrex"), h("dd", { class: "mono" }, `${info.pins.ethrex.image} (${short(info.pins.ethrex.image_id, 19)})`),
-          h("dt", null, "client"), h("dd", { class: "mono" }, info.pins.ethrex.client_version),
-          h("dt", null, "commit"), h("dd", { class: "mono" }, info.pins.ethrex.pinned_commit),
-          h("dt", null, "genesis"), h("dd", { class: "mono" }, `sha256 ${short(info.pins.ethrex.genesis_sha256, 12)}, chain ${info.pins.ethrex.chain_id}`),
-          h("dt", null, "sidecar"), h("dd", { class: "mono" }, `${info.pins.sidecar.commit.slice(0, 12)} · ${info.pins.sidecar.build_label}-${info.pins.sidecar.build_hash.slice(0, 12)}`),
-          h("dt", null, "patches"), h("dd", { class: "mono" }, info.pins.sidecar.patches.map((p) => p.file).join(", ")),
-          h("dt", null, "block height"), h("dd", { class: "mono" }, info.block_height))),
-        h("div", null, h("h4", null, "Rule pack and compatibility"), h("dl", { class: "kv" },
-          h("dt", null, "pack"), h("dd", { class: "mono" }, `${rp.id} (${rp.hash.slice(0, 12)})`),
-          h("dt", null, "source"), h("dd", { class: "mono" }, rp.source_revision),
-          h("dt", null, "quotes"), h("dd", null, rp.quotes_verified === rp.quotes ? h("span", { class: "ok" }, `✓ ${rp.quotes_verified}/${rp.quotes} found verbatim at the pinned source`) : h("span", { class: "no" }, `✗ only ${rp.quotes_verified}/${rp.quotes} quotes verified`))),
-          h("h4", null, "Capabilities"), h("ul", { class: "pre" }, Object.entries(info.capabilities).map(([k, v]) =>
-            h("li", null, h("span", { class: String(v).startsWith("ok") ? "ok" : "no", "aria-hidden": "true" }, String(v).startsWith("ok") ? "✓" : "✗"), h("span", null, h("b", null, k), " ", h("span", { class: "muted" }, v))))))),
-      h("h4", null, "Run"),
-      h("div", { class: "row", style: "align-items:end" },
+      h("div", { class: "panel-head" },
+        h("span", { class: "status-dot", "aria-hidden": "true" }),
+        h("div", null, h("div", { class: "eyebrow" }, "Pinned stack on 127.0.0.1"), h("h2", null, "Local network ready")),
+        h("span", { class: "spacer" }),
+        metaChip("chain", eth.chain_id), metaChip("block", info.block_height),
+        h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, icon("stop"), "Stop network")),
+      h("p", { class: "muted" }, info.note)),
+    h("div", { class: "bezel" }, h("section", { class: "panel" },
+      h("div", { class: "card-head" }, h("h3", null, "Run a scenario")),
+      h("div", { class: "composer" },
         h("div", { class: "field" }, h("label", { for: "scenario" }, "Scenario"), scenarioSel),
         h("div", { class: "field" }, h("label", { for: "build" }, "Node build"), buildSel),
-        h("button", { class: "btn primary", disabled: ui.pending, onclick: () => {
+        h("button", { class: "btn primary lg", disabled: ui.pending, onclick: () => {
           ui.lastScenario = scenarioSel.value; ui.lastBuild = buildSel.value;
           act("run", () => api("POST", "/api/run", { scenario: scenarioSel.value, build: buildSel.value }));
-        } }, "Run scenario")),
-      h("p", { class: "muted small" }, "Each run stops this probe stack and starts two fresh stacks of its own (run 1/2, run 2/2).")),
+        } }, icon("play"), "Run scenario")),
+      injectedPick ? banner("amber", "LOCAL INJECTED REGRESSION: this build carries a patch on purpose. Its failures demonstrate FrameLab; they are not upstream bugs.") : null,
+      h("p", { class: "faint small" }, "Each run stops this probe stack and starts two fresh stacks of its own (run 1/2, run 2/2)."))),
+    h("div", { class: "bento" },
+      h("section", { class: "panel span-rows" },
+        h("div", { class: "card-head" }, h("h3", null, "Pins")),
+        h("dl", { class: "kv" },
+          kv("ethrex", eth.image, { mono: true }),
+          kv("image id", short(eth.image_id, 19), { mono: true, copy: eth.image_id, title: eth.image_id }),
+          kv("client", eth.client_version, { mono: true }),
+          kv("commit", eth.pinned_commit, { mono: true, copy: eth.pinned_commit }),
+          kv("genesis", `sha256 ${short(eth.genesis_sha256, 12)}, chain ${eth.chain_id}`, { mono: true, copy: eth.genesis_sha256 }),
+          kv("sidecar", `${sc.commit.slice(0, 12)} · ${sc.build_label}-${sc.build_hash.slice(0, 12)}`, { mono: true, copy: sc.commit }),
+          kv("patches", sc.patches.map((p) => p.file).join(", "), { mono: true }),
+          kv("block height", info.block_height, { mono: true }))),
+      h("section", { class: "panel" },
+        h("div", { class: "card-head" }, h("h3", null, "Rule pack and compatibility")),
+        h("div", { class: "score" },
+          h("span", { class: `bignum ${quotesOk ? "tone-pass" : "tone-fail"}` }, `${rp.quotes_verified}/${rp.quotes}`),
+          h("span", { class: "muted small" }, quotesOk ? "quotes found verbatim at the pinned source" : `only ${rp.quotes_verified}/${rp.quotes} quotes verified`)),
+        h("dl", { class: "kv" },
+          kv("pack", rp.id, { mono: true }),
+          kv("hash", rp.hash.slice(0, 12), { mono: true, copy: rp.hash }),
+          kv("source", rp.source_revision, { mono: true }))),
+      h("section", { class: "panel" },
+        h("div", { class: "card-head" }, h("h3", null, "Capabilities"), h("span", { class: "spacer" }), h("span", { class: "faint small num" }, `${caps.filter(([, v]) => capOk(v)).length}/${caps.length} ok`)),
+        h("ul", { class: "checks" }, caps.map(([k, v]) => h("li", null,
+          h("span", { class: `ck ${capOk(v) ? "ok" : "no"}`, role: "img", "aria-label": capOk(v) ? "ok" : "failed" }, icon(capOk(v) ? "check" : "x")),
+          h("span", null, h("b", { class: "mono" }, k), h("span", { class: "muted" }, capOk(v) ? String(v).replace(/^ok:\s*/, "") : v))))))),
     h("section", { class: "panel" }, det("ready-results", h("h3", null, "Open a saved result"), resultsList(s.results))),
   ];
 }
@@ -377,21 +941,34 @@ function viewRunning() {
   const resetting = last(p, (e) => e.kind === "reset");
   const cancelling = ui.cancelRequested === job.dir;
   const runNo = runStart ? runStart.run : 1;
+  const stepNow = step && step.run === runNo ? step : null;
+  const waitNow = wait && wait.run === runNo ? wait : null;
   return [h("section", { class: "panel" },
-    h("div", { class: "row" },
-      h("h2", { class: "live" }, job.kind === "shrink" ? `Shrink: original double run of ${job.label}` : `Running ${job.label}`),
+    h("div", { class: "panel-head" },
+      h("span", { class: "live-dot", style: phase(1600), "aria-hidden": "true" }),
+      h("div", null, h("div", { class: "eyebrow" }, job.kind === "shrink" ? "Shrink, step 1 of 2: confirm the failure" : "Run in progress", runStart ? [h("span", { class: "sep" }, "·"), h("span", { class: "mono" }, `node build ${runStart.build}`)] : null),
+        h("h2", null, job.kind === "shrink" ? `Shrink: original double run of ${job.label}` : `Running ${job.label}`)),
       h("span", { class: "spacer" }),
-      h("button", { class: "btn primary", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, cancelling ? "Cancelling…" : "Cancel")),
-    cancelling ? h("p", { class: "banner grey", role: "status" }, "Stops before the next step. The result will be INCONCLUSIVE, not green.") : null,
+      h("button", { class: "btn", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), cancelling ? "Cancelling…" : "Cancel")),
+    cancelling ? h("div", { class: "banner grey", role: "status" }, icon("info"), h("div", null, "Stops before the next step. The result will be INCONCLUSIVE, not green.")) : null,
+    h("div", { class: "runs-track" }, [1, 2].map((k) => {
+      const d = done.find((x) => x.run === k);
+      const active = !d && runNo === k;
+      const progress = d ? 1 : active && stepNow ? (stepNow.index + 1) / stepNow.total : 0;
+      return h("div", { class: `rt ${d ? "done" : active ? "active" : "queued"}` },
+        h("div", { class: "rt-head" }, h("span", { class: "rt-name" }, `Run ${k}/2`),
+          d ? pill(d.overall) : active ? h("span", { class: "rt-state" }, runStart ? "on the node" : "preparing") : h("span", { class: "rt-state faint" }, "next")),
+        h("div", { class: "meter", role: "progressbar", "aria-label": `Run ${k} progress`, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": Math.round(progress * 100) }, h("i", { style: `--p:${progress}` })),
+        h("div", { class: "rt-sub" }, d ? `${d.executed}/${d.declared} assertions` : active ? (stepNow ? `step ${stepNow.index + 1}/${stepNow.total} · ${stepNow.step_id}` : "fresh ethrex container + fresh sidecar") : "starts on a fresh stack"));
+    })),
     h("div", { class: "stats" },
-      h("div", { class: "stat" }, h("b", null, `Run ${runNo}/2`), h("span", null, runStart ? `node build ${runStart.build}` : "preparing")),
-      h("div", { class: "stat" }, h("b", { class: "mono", style: "font-size:16px" }, step && step.run === runNo ? step.step_id : resetting && resetting.run === runNo ? "reset" : "—"),
-        h("span", null, step && step.run === runNo ? `current action: ${step.action} (step ${step.index + 1}/${step.total})` : "fresh ethrex container + fresh sidecar")),
+      stat(stepNow ? stepNow.step_id : resetting && resetting.run === runNo ? "reset" : "—",
+        stepNow ? `current action: ${stepNow.action} (step ${stepNow.index + 1}/${stepNow.total})` : "fresh ethrex container + fresh sidecar", null, { class: "mono" }),
       h("div", { class: "stat" },
-        h("b", { class: "mono", style: "font-size:16px" }, wait && wait.run === runNo ? wait.checkpoint_id : "—"),
-        h("span", null, !wait || wait.run !== runNo ? "no checkpoint yet" : waitDone ? `pass seen for block ${wait.block}` : `waiting for the reconcile pass of block ${wait.block} (${secs(Date.now() - wait.at)} of ${secs(wait.limit_ms)})`)),
-      h("div", { class: "stat" }, h("b", { "data-since": job.started }, mmss(Date.now() - job.started)), h("span", null, "elapsed"))),
-    done.length ? h("p", null, done.map((d) => h("span", { style: "margin-right:16px" }, `run ${d.run}: `, pill(d.overall), ` ${d.executed}/${d.declared} assertions`))) : null,
+        h("b", { class: "mono" }, waitNow ? waitNow.checkpoint_id : "—"),
+        h("span", null, !waitNow ? "no checkpoint yet" : waitDone ? `pass seen for block ${waitNow.block}` : `waiting for the reconcile pass of block ${waitNow.block} (${secs(Date.now() - waitNow.at)} of ${secs(waitNow.limit_ms)})`),
+        waitNow && !waitDone ? h("div", { class: "meter" }, h("i", { "data-meter-from": waitNow.at, "data-meter-len": waitNow.limit_ms, style: `--p:${Math.min(1, (Date.now() - waitNow.at) / waitNow.limit_ms)}` })) : null),
+      stat(mmss(Date.now() - job.started), "elapsed", null, { "data-since": job.started })),
     det("run-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n") || "…")))];
 }
 
@@ -412,24 +989,39 @@ function viewShrinking() {
   const nowLine = live
     ? `On the node now: candidate ${(lc?.n ?? 0) + 1}, fresh run ${live.run}` + (liveStep ? `, step ${liveStep.index + 1}/${liveStep.total} (${liveStep.step_id})` : "") + (live.kind === "checkpoint-wait" ? `, waiting for the block ${live.block} pass` : "")
     : null;
+  const cell = (k, v, cls) => h("div", { class: cls || null }, h("span", { class: "k" }, k), h("span", { class: "val" }, v));
   return [h("section", { class: "panel" },
-    h("div", { class: "row" },
-      h("h2", { class: "live" }, `Shrinking ${job.label}`), h("span", { class: "spacer" }),
-      h("button", { class: "btn primary", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, stopping ? "Stopping after this candidate…" : "Stop and keep best")),
-    stopping ? h("p", { class: "banner grey", role: "status" }, "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported.") : null,
-    h("p", null, "Frozen target: ", h("b", null, t.assertion_id), " ", pill(t.verdict), ` on ${t.tx_role} under ${t.rule_ref} at ${t.checkpoint_id}`),
+    h("div", { class: "panel-head" },
+      h("span", { class: "live-dot", style: phase(1600), "aria-hidden": "true" }),
+      h("div", null, h("div", { class: "eyebrow" }, "Shrink, step 2 of 2: delete steps, keep the failure"), h("h2", null, `Shrinking ${job.label}`)),
+      h("span", { class: "spacer" }),
+      h("button", { class: "btn", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), stopping ? "Stopping after this candidate…" : "Stop and keep best")),
+    stopping ? h("div", { class: "banner grey", role: "status" }, icon("info"), h("div", null, "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported.")) : null,
+    h("p", { class: "section-k" }, "Frozen target"),
+    h("div", { class: "strip" },
+      h("div", null, h("span", { class: "k" }, "assertion"), h("span", { class: "row tight" }, h("b", { class: "val" }, t.assertion_id), pill(t.verdict))),
+      cell("tx", t.tx_role), cell("rule", t.rule_ref), cell("checkpoint", t.checkpoint_id)),
+    h("div", { class: "budget" },
+      h("div", { class: "budget-row" },
+        h("div", { class: "row" }, h("span", null, "Candidates on the node"), h("span", { class: "spacer" }), h("span", { class: "mono num" }, `${totals.node_tested} of ${limitC}`), h("span", { class: "faint small" }, `· ${Math.max(0, limitC - totals.node_tested)} left`)),
+        h("div", { class: "meter" }, h("i", { style: `--p:${Math.min(1, totals.node_tested / limitC)}` }))),
+      h("div", { class: "budget-row" },
+        h("div", { class: "row" }, h("span", null, "Wall time"), h("span", { class: "spacer" }), h("span", { class: "mono num", "data-until": start.at + limitW }, mmss(limitW - used)), h("span", { class: "faint small" }, `left of ${mmss(limitW)}`)),
+        h("div", { class: "meter" }, h("i", { "data-meter-from": start.at, "data-meter-len": limitW, style: `--p:${Math.min(1, used / limitW)}` })))),
     h("div", { class: "stats" },
-      h("div", { class: "stat" }, h("b", null, totals.node_tested), h("span", null, `attempted on the node (of ${limitC})`)),
-      h("div", { class: "stat" }, h("b", null, totals.kept), h("span", null, "kept: still reproduces")),
-      h("div", { class: "stat" }, h("b", null, totals.unresolved), h("span", null, "unresolved: never a success")),
-      h("div", { class: "stat" }, h("b", null, totals.invalid), h("span", null, "rejected before any node run")),
-      h("div", { class: "stat" }, h("b", null, totals.cached), h("span", null, "cache hits")),
-      h("div", { class: "stat" }, h("b", null, `${Math.max(0, limitC - totals.node_tested)} · `, h("span", { "data-until": start.at + limitW }, mmss(limitW - used))), h("span", null, "budget left: candidates · wall time"))),
-    nowLine ? h("p", { class: "mono small", role: "status" }, nowLine) : null,
+      stat(totals.node_tested, `attempted on the node (of ${limitC})`),
+      stat(totals.kept, "kept: still reproduces", totals.kept ? "pass" : null),
+      stat(totals.unresolved, "unresolved: never a success", totals.unresolved ? "amber" : null),
+      stat(totals.invalid, "rejected before any node run"),
+      stat(totals.cached, "cache hits")),
+    nowLine ? h("p", { class: "now", role: "status" }, h("span", { class: "live-dot", style: phase(1600), "aria-hidden": "true" }), nowLine) : null,
     h("h4", null, "Latest candidates"),
-    h("table", { class: "plain small" }, h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "phase"), h("th", null, "removed"), h("th", null, "outcome"), h("th", null, "reason"))),
-      h("tbody", null, cands.slice(-12).reverse().map((c) => h("tr", null, h("td", null, c.n), h("td", null, c.phase), h("td", null, `${c.removed_units} units, ${c.removed_actors} actors`),
-        h("td", null, c.outcome, c.cached ? " (cached)" : ""), h("td", { class: "muted" }, String(c.reason).slice(0, 110)))))),
+    cands.length ? h("div", { class: "table-wrap" }, h("table", { class: "plain" },
+      h("thead", null, h("tr", null, h("th", { class: "r" }, "#"), h("th", null, "phase"), h("th", null, "removed"), h("th", null, "outcome"), h("th", null, "reason"))),
+      h("tbody", null, cands.slice(-12).reverse().map((c) => h("tr", null,
+        h("td", { class: "r mono num" }, c.n), h("td", null, c.phase), h("td", { class: "num" }, `${c.removed_units} units, ${c.removed_actors} actors`),
+        h("td", null, h("span", { class: "row tight" }, h("span", { class: `pill o-${c.outcome}` }, c.outcome), c.cached ? h("span", { class: "faint small" }, "(cached)") : null)),
+        h("td", { class: "reason", title: String(c.reason) }, String(c.reason).slice(0, 110))))))) : h("p", { class: "faint small" }, "No candidate has finished yet."),
     det("shrink-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n"))))];
 }
 
@@ -438,27 +1030,28 @@ function ruleBlock(ruleId) {
   const rule = pack?.rules?.find((r) => r.id === ruleId);
   if (!rule) return h("p", { class: "muted" }, `Rule ${ruleId}: text not available in this folder.`);
   const rev = pack.source?.revision || "";
-  return h("div", null,
-    h("h4", null, `Rule ${rule.id} · ${rule.strength}`),
+  return h("div", { class: "rule" },
+    h("h4", null, "Rule"),
+    h("div", { class: "row tight" }, h("b", null, rule.id), h("span", { class: "tag" }, rule.strength)),
     h("p", null, rule.summary),
     rule.refs.map((ref) => h("blockquote", null, ref.quote,
-      h("cite", null, pack.source?.repo ? h("a", { href: `${pack.source.repo}/blob/${rev}/${ref.path}`, target: "_blank", rel: "noreferrer" }, `${ref.path}`) : ref.path, ` @ ${rev.slice(0, 7)}${ref.section ? ` · ${ref.section}` : ""}`))),
-    h("p", { class: "muted small" }, pack.authority || ""));
+      h("cite", null, pack.source?.repo ? h("a", { href: `${pack.source.repo}/blob/${rev}/${ref.path}`, target: "_blank", rel: "noreferrer" }, ref.path, icon("external")) : ref.path, ` @ ${rev.slice(0, 7)}${ref.section ? ` · ${ref.section}` : ""}`))),
+    h("p", { class: "faint small" }, pack.authority || ""));
 }
 
 function detailPanel(run, cols, roles) {
   const sel = ui.sel;
-  if (!sel || !cols[sel.col] || !roles.includes(sel.role)) return h("aside", { class: "panel detail" }, h("p", { class: "muted" }, "Select a cell to see before and after state, the expectation, the rule text and the raw call."));
+  if (!sel || !cols[sel.col] || !roles.includes(sel.role)) return h("aside", { class: "panel detail" }, h("div", { class: "detail-empty" }, icon("pointer"), h("p", null, "Select a cell to see before and after state, the expectation, the rule text and the raw call.")));
   const col = cols[sel.col];
   const c = cellOf(run, sel.role, col);
-  const header = h("h3", null, `${sel.role} at ${col.id}`);
-  if (!c) return h("aside", { class: "panel detail" }, header, h("p", { class: "muted" }, "Nothing recorded for this tx at this step."));
+  const head = (what) => h("div", { class: "detail-head" }, h("div", { class: "eyebrow" }, `Run ${run.k}`, h("span", { class: "sep" }, "·"), what), h("h3", null, `${sel.role} at ${col.id}`));
+  if (!c) return h("aside", { class: "panel detail", "aria-label": "Selected cell" }, head(col.step.action), h("div", { class: "detail-body" }, h("p", { class: "muted" }, "Nothing recorded for this tx at this step.")));
   if (c.kind === "submit") {
-    return h("aside", { class: "panel detail" }, header,
-      h("dl", { class: "kv" }, h("dt", null, "run"), h("dd", null, `run ${run.k}`), h("dt", null, "step"), h("dd", { class: "mono" }, col.id),
-        h("dt", null, "result"), h("dd", null, c.fate), c.event?.tx_hash ? [h("dt", null, "tx"), h("dd", { class: "mono" }, c.event.tx_hash)] : null),
+    return h("aside", { class: "panel detail", "aria-label": "Selected cell" }, head("submission"), h("div", { class: "detail-body" },
+      h("dl", { class: "kv" }, kv("run", `run ${run.k}`), kv("step", col.id, { mono: true }), kv("result", c.fate, { mono: true }),
+        c.event?.tx_hash ? kv("tx", c.event.tx_hash, { mono: true, copy: c.event.tx_hash }) : null),
       c.sim ? det("raw-sim", "Raw call: ethrex_simulateFrameTransaction", h("pre", null, pretty(c.sim.raw))) : null,
-      c.event?.raw ? det("raw-admission", `Raw sidecar response (${c.fate})`, h("pre", null, pretty(c.event.raw))) : null);
+      c.event?.raw ? det("raw-admission", `Raw sidecar response (${c.fate})`, h("pre", null, pretty(c.event.raw))) : null));
   }
   // before = the tx's fate at the previous checkpoint it was observed at
   let before = { fate: "admitted", raw: "" };
@@ -472,65 +1065,112 @@ function detailPanel(run, cols, roles) {
   const a = c.assertion;
   const status = run.events.find((e) => e.kind === "status" && e.tx_role === sel.role && e.checkpoint_id === col.step.checkpoint_id && e.block_number);
   const cp = c.cp;
-  return h("aside", { class: "panel detail", "aria-label": "Selected cell" }, header,
+  return h("aside", { class: "panel detail", "aria-label": "Selected cell" }, head("checkpoint"), h("div", { class: "detail-body" },
     h("dl", { class: "kv" },
-      h("dt", null, "run"), h("dd", null, `run ${run.k}`),
-      h("dt", null, "checkpoint"), h("dd", { class: "mono" }, col.step.checkpoint_id),
-      cp?.block ? [h("dt", null, "block"), h("dd", { class: "mono" }, `${cp.block.number} · ${short(cp.block.hash, 12)}`)] : null,
-      c.tx?.hash ? [h("dt", null, "tx"), h("dd", { class: "mono" }, c.tx.hash)] : null,
-      c.tx?.payer ? [h("dt", null, "payer"), h("dd", { class: "mono" }, c.tx.payer)] : null),
+      kv("run", `run ${run.k}`),
+      kv("checkpoint", col.step.checkpoint_id, { mono: true }),
+      cp?.block ? kv("block", `${cp.block.number} · ${short(cp.block.hash, 12)}`, { mono: true, copy: cp.block.hash }) : null,
+      c.tx?.hash ? kv("tx", c.tx.hash, { mono: true, copy: c.tx.hash }) : null,
+      c.tx?.payer ? kv("payer", c.tx.payer, { mono: true, copy: c.tx.payer }) : null),
     h("div", { class: "ba" },
-      h("div", null, h("span", { class: "label" }, before.at ? `before (${before.at})` : "before"), h("span", { class: "mono" }, before.fate), before.raw ? h("span", { class: "muted small" }, ` raw ${before.raw}`) : null),
-      h("span", { "aria-hidden": "true" }, "→"),
-      h("div", null, h("span", { class: "label" }, "after"), h("span", { class: "mono" }, c.fate), c.tx?.raw_status ? h("span", { class: "muted small" }, ` raw ${c.tx.raw_status}`) : null)),
+      h("div", null, h("span", { class: "label" }, before.at ? `before (${before.at})` : "before"), h("span", { class: "val" }, before.fate), before.raw ? h("span", { class: "raw" }, `raw ${before.raw}`) : null),
+      h("span", { class: "arrow" }, icon("arrow")),
+      h("div", { class: `after${a ? ` v-${a.verdict}` : ""}` }, h("span", { class: "label" }, "after"), h("span", { class: "val" }, c.fate), c.tx?.raw_status ? h("span", { class: "raw" }, `raw ${c.tx.raw_status}`) : null)),
     a ? h("div", null,
-      h("div", { class: "row" }, h("b", null, a.assertion_id), pill(a.verdict)),
-      a.reasons.some((r) => r.startsWith(`expected ${a.expected}, observed ${a.observed}`)) ? null : h("p", null, `expected ${a.expected}, observed ${a.observed}`),
-      a.reasons.some((r) => r.startsWith("wrong test expectation")) ? h("p", { class: "banner grey" }, "Wrong test expectation (deliberate). This says nothing about the node.") : null,
+      h("div", { class: "assert-head" }, h("b", null, a.assertion_id), pill(a.verdict)),
+      a.reasons.some((r) => r.startsWith(`expected ${a.expected}, observed ${a.observed}`)) ? null : h("p", { class: "expect" }, `expected ${a.expected}, observed ${a.observed}`),
+      a.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Wrong test expectation (deliberate). This says nothing about the node.") : null,
       h("ul", { class: "facts" }, a.reasons.map((r) => h("li", null, r))),
       h("h4", null, "Applicability"),
-      a.preconditions.length ? h("ul", { class: "pre" }, a.preconditions.map((p) => h("li", null,
-        h("span", { class: p.holds === true ? "ok" : p.holds === false ? "no" : "unk", "aria-label": p.holds === true ? "holds" : p.holds === false ? "does not hold" : "unknown" }, p.holds === true ? "✓" : p.holds === false ? "✗" : "?"),
-        h("span", null, h("b", null, p.precondition.kind), p.detail ? h("span", { class: "muted" }, ` ${p.detail.replace(/\bat (1\d{12})\b/, (_, ms) => `at ${new Date(Number(ms)).toISOString().slice(11, 23)} UTC`)}`) : null)))) : h("p", { class: "muted" }, "No preconditions were evaluated (the assertion stopped earlier)."),
+      a.preconditions.length ? h("ul", { class: "checks" }, a.preconditions.map((p) => h("li", null,
+        h("span", { class: `ck ${p.holds === true ? "ok" : p.holds === false ? "no" : "unk"}`, role: "img", "aria-label": p.holds === true ? "holds" : p.holds === false ? "does not hold" : "unknown" }, icon(p.holds === true ? "check" : p.holds === false ? "x" : "question")),
+        h("span", null, h("b", { class: "mono" }, p.precondition.kind), p.detail ? h("span", { class: "muted" }, p.detail.replace(/\bat (1\d{12})\b/, (_, ms) => `at ${new Date(Number(ms)).toISOString().slice(11, 23)} UTC`)) : null)))) : h("p", { class: "muted" }, "No preconditions were evaluated (the assertion stopped earlier)."),
       ruleBlock(a.rule_ref)) : h("p", { class: "muted" }, "No assertion is attached to this cell."),
     cp ? h("div", null,
       h("h4", null, "Checkpoint state"),
-      h("p", null, cp.pass ? `Reconcile pass completed for block ${cp.pass.block}: ${cp.pass.revalidated.length} re-simulated, ${cp.pass.balance_cancelled.length} cancelled by balance enforcement.` : "No completed reconcile pass was observed."),
-      cp.balances ? h("table", { class: "plain small" }, h("tbody", null, Object.entries(cp.balances).map(([role, wei]) => h("tr", null, h("th", null, role), h("td", { class: "mono" }, `${wei} wei`))))) : null,
-      cp.storage ? h("table", { class: "plain small" }, h("tbody", null, Object.entries(cp.storage).map(([k, v]) => h("tr", null, h("th", null, k), h("td", { class: "mono" }, v))))) : null) : null,
-    status ? det("raw-status", "Raw call: skandha_frameTransactionStatus + explorer at this checkpoint", h("pre", null, pretty(status.raw))) : null);
+      h("p", { class: "small" }, cp.pass ? `Reconcile pass completed for block ${cp.pass.block}: ${cp.pass.revalidated.length} re-simulated, ${cp.pass.balance_cancelled.length} cancelled by balance enforcement.` : "No completed reconcile pass was observed."),
+      cp.balances ? h("table", { class: "bare" }, h("tbody", null, Object.entries(cp.balances).map(([role, wei]) => h("tr", null, h("th", { class: "mono" }, role), h("td", { class: "mono num" }, `${wei} wei`))))) : null,
+      cp.storage ? h("table", { class: "bare" }, h("tbody", null, Object.entries(cp.storage).map(([k, v]) => h("tr", null, h("th", { class: "mono" }, k), h("td", { class: "mono" }, v))))) : null) : null,
+    status ? det("raw-status", "Raw call: skandha_frameTransactionStatus + explorer at this checkpoint", h("pre", null, pretty(status.raw))) : null));
+}
+
+/** Arrow keys move the selection between cells of the matrix. */
+function cellKeys(e) {
+  const k = e.key;
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(k)) return;
+  const r = Number(e.currentTarget.dataset.r), c = Number(e.currentTarget.dataset.c);
+  let best = null;
+  for (const el of document.querySelectorAll("table.timeline .cell")) {
+    const x = { el, r: Number(el.dataset.r), c: Number(el.dataset.c) };
+    const nearer = (b) => !b || Math.abs(x.r - r) < Math.abs(b.r - r) || (Math.abs(x.r - r) === Math.abs(b.r - r) && Math.abs(x.c - c) < Math.abs(b.c - c));
+    if (k === "ArrowRight" && x.r === r && x.c > c && (!best || x.c < best.c)) best = x;
+    if (k === "ArrowLeft" && x.r === r && x.c < c && (!best || x.c > best.c)) best = x;
+    if (k === "ArrowDown" && x.r > r && nearer(best)) best = x;
+    if (k === "ArrowUp" && x.r < r && nearer(best)) best = x;
+  }
+  if (!best) return;
+  e.preventDefault();
+  best.el.focus();
+  best.el.click();
 }
 
 function timeline() {
   const m = ui.view;
   const run = m.runs.find((r) => r.k === ui.run) || m.runs[0];
-  if (!run) return h("section", { class: "panel" }, h("p", { class: "muted" }, m.verdicts.compatibility?.applicable === false ? "Nothing ran on a node, so there is no timeline." : "No run evidence in this folder."));
+  if (!run) return h("section", { class: "panel" }, h("div", { class: "empty-note" }, icon("info"), h("p", null, m.verdicts.compatibility?.applicable === false ? "Nothing ran on a node, so there is no timeline." : "No run evidence in this folder.")));
   const cols = columnsOf(run);
   const roles = rolesOf(cols);
+  const grid = roles.map((role) => cols.map((col) => cellOf(run, role, col)));
+  const used = cols.map((_, ci) => grid.some((row) => row[ci]));
+  const selRow = ui.sel && roles.includes(ui.sel.role) ? ui.sel.role : null;
+  const selCol = selRow ? ui.sel.col : -1;
+  const colClass = (s, ci) => [s.action === "advance-to-checkpoint" ? "cp" : s.action === "submit" ? "sc" : null, used[ci] ? null : "thin", ci === selCol ? "is-sel-col" : null].filter(Boolean).join(" ") || null;
   const tabs = h("div", { class: "tabs", role: "tablist", "aria-label": "Run" }, m.runs.map((r) =>
-    h("button", { class: "tab", role: "tab", "aria-selected": r.k === run.k ? "true" : "false", onclick: () => { ui.run = r.k; render(); } }, `Run ${r.k}`, r.verdict ? ` · ${r.verdict.overall}` : "")));
-  const thead = h("thead", null, h("tr", null, h("th", { scope: "col" }, "tx role"), cols.map((c) => {
+    h("button", { class: "tab", role: "tab", "aria-selected": r.k === run.k ? "true" : "false", onclick: () => { ui.run = r.k; ui.scrollSel = true; render(); } },
+      r.verdict ? h("span", { class: `d v-${r.verdict.overall}`, "aria-hidden": "true" }) : null, `Run ${r.k}`, r.verdict ? ` · ${r.verdict.overall}` : "")));
+  const thead = h("thead", null, h("tr", null, h("th", { scope: "col", class: "corner" }, "tx role"), cols.map((c, ci) => {
     const s = c.step;
     const cp = s.action === "advance-to-checkpoint" ? run.evidence?.checkpoints?.[s.checkpoint_id] : null;
     const sub = s.action === "advance-to-checkpoint" ? (cp ? `checkpoint · block ${cp.block.number}` : "checkpoint · not reached") : s.action === "submit" ? `submit ${s.tx_role}` : s.action;
-    return h("th", { scope: "col", class: s.action === "advance-to-checkpoint" ? "cp" : null }, h("span", { class: "mono" }, c.id), h("span", { class: "sub" }, sub));
+    return h("th", { scope: "col", class: colClass(s, ci), title: used[ci] ? null : `${c.id} · ${sub}` }, h("span", { class: "mono" }, c.id), h("span", { class: "sub" }, sub));
   })));
-  const tbody = h("tbody", null, roles.map((role) => h("tr", null, h("th", { scope: "row" }, role), cols.map((col, ci) => {
-    const c = cellOf(run, role, col);
-    if (!c) return h("td", null);
-    const a = c.assertion;
-    const selected = ui.sel && ui.sel.role === role && ui.sel.col === ci;
-    return h("td", null, h("button", {
-      class: `cell ${a ? `v-${a.verdict}` : c.fate === "not reached" || c.fate === "not submitted" ? "empty" : ""}`,
-      "aria-pressed": selected ? "true" : "false",
-      "aria-label": `${role} at ${col.id}: ${c.fate}${a ? `; ${a.assertion_id} ${label(a.verdict)}` : ""}`,
-      onclick: () => { ui.sel = { role, col: ci }; render(); },
-    }, a ? h("span", { class: "aid" }, a.assertion_id) : null, h("span", { class: "fate" }, c.fate), a ? h("span", { class: "small vlabel" }, label(a.verdict)) : null));
-  }))));
+  const tbody = h("tbody", null, roles.map((role, ri) => {
+    const row = grid[ri];
+    const born = cols.findIndex((c) => c.step.action === "submit" && c.step.tx_role === role);
+    let lastSeen = -1;
+    row.forEach((x, i) => { if (x) lastSeen = i; });
+    return h("tr", { class: role === selRow ? "is-sel" : null }, h("th", { scope: "row" }, role), cols.map((col, ci) => {
+      const c = row[ci];
+      const cls = colClass(col.step, ci);
+      if (!c) return h("td", { class: [cls, born >= 0 && ci > born && ci < lastSeen ? "lane" : null].filter(Boolean).join(" ") || null });
+      const a = c.assertion;
+      const selected = ui.sel && ui.sel.role === role && ui.sel.col === ci;
+      const kind = a ? `v-${a.verdict}` : c.fate === "not reached" || c.fate === "not submitted" ? "empty" : c.kind === "submit" ? "submit" : "obs";
+      return h("td", { class: cls }, h("button", {
+        class: `cell ${kind}`,
+        "data-r": ri, "data-c": ci,
+        "aria-pressed": selected ? "true" : "false",
+        "aria-label": `${role} at ${col.id}: ${c.fate}${a ? `; ${a.assertion_id} ${label(a.verdict)}` : ""}`,
+        onclick: () => { ui.sel = { role, col: ci }; render(); },
+        onkeydown: cellKeys,
+      }, h("span", { class: "fate" }, c.fate),
+        h("span", { class: "meta" }, a ? [h("span", { class: "aid" }, a.assertion_id), h("span", { class: "vl" }, label(a.verdict).toLowerCase())] : h("span", { class: "vl" }, c.kind === "submit" ? "submission" : "observed"))));
+    }));
+  }));
   return h("section", { class: "workspace" },
-    h("div", { class: "panel" }, h("div", { class: "row" }, h("h3", null, m.reduction ? "Timeline: original scenario, two fresh runs" : "Timeline"), h("span", { class: "spacer" }), tabs),
+    h("div", { class: "panel" },
+      h("div", { class: "panel-head" },
+        h("div", null, h("div", { class: "eyebrow" }, `${roles.length} tx roles`, h("span", { class: "sep" }, "·"), `${cols.length} steps`), h("h3", null, m.reduction ? "Timeline: original scenario, two fresh runs" : "Timeline")),
+        h("span", { class: "spacer" }), tabs),
+      h("div", { class: "legend", "aria-hidden": "true" },
+        h("span", null, h("i", { class: "v-PASS" }), "pass"),
+        h("span", null, h("i", { class: "v-EXPECTED_INVALIDATION" }), "expected invalidation"),
+        h("span", null, h("i", { class: "v-FAIL" }), "mismatch"),
+        h("span", null, h("i", { class: "v-INCONCLUSIVE" }), "inconclusive"),
+        h("span", null, h("i", null), "no assertion"),
+        h("span", null, h("i", { class: "dash" }), "not reached")),
       h("div", { class: "grid-wrap" }, h("table", { class: "timeline" }, thead, tbody)),
-      h("p", { class: "muted small" }, "Steps and blocks run across; tx roles run down. Coloured cells carry an assertion.")),
+      h("p", { class: "faint small matrix-foot" }, "Steps and blocks run across; tx roles run down. Coloured cells carry an assertion. Arrow keys move between cells.")),
     detailPanel(run, cols, roles));
 }
 
@@ -554,6 +1194,8 @@ function missingFacts(m) {
   return facts;
 }
 
+function closeView() { ui.view = null; ui.sel = null; render(); }
+
 function viewResult(state) {
   const m = ui.view;
   const v = m.verdicts;
@@ -572,61 +1214,85 @@ function viewResult(state) {
     if (!r.ok) throw new Error(r.output.join(" · "));
     ui.notice = { kind: "info", text: `Bundle written to ${r.bundle}. Replay it without the UI: FRAMELAB=/path/to/framelab ${r.bundle}/replay.sh` };
     await openDir(r.bundle);
-  }) }, m.kind === "bundle" ? "Exported" : "Export regression");
+  }) }, icon(m.kind === "bundle" ? "check" : "download"), m.kind === "bundle" ? "Exported" : "Export regression");
 
   let primary, body;
   if (state === "pass") {
-    body = [h("p", null, h("b", null, `${reached}/${declared}`), " assertions reached on both runs · rules exercised: ", rules.map((r) => h("code", { style: "margin-right:6px" }, r))),
-      h("p", { class: "muted small" }, "Expected invalidations are a pass, not a failure. A PASS covers these assertions only, not the whole client.")];
+    body = [h("div", { class: "pass-line" },
+      h("span", { class: "bignum tone-pass" }, `${reached}/${declared}`),
+      h("div", null, h("b", null, "assertions reached on both runs"),
+        h("div", { class: "chips" }, h("span", { class: "faint small" }, "rules exercised:"), rules.map((r) => h("code", null, r))))),
+      h("p", { class: "faint small" }, "Expected invalidations are a pass, not a failure. A PASS covers these assertions only, not the whole client.")];
     primary = exportBtn(true);
   } else if (state === "fail") {
     const why = !reproducible ? "Not reproducible: the two runs do not agree on the mismatch." : m.reduction ? "Already shrunk: see the reduction below." : !canAct ? "Start `framelab serve` to shrink from the UI." : null;
-    body = [first ? h("p", null, "First mismatch: ", h("b", null, first.assertion_id), " ", pill(first.verdict), ` ${first.tx_role} expected ${first.expected}, observed ${first.observed} under ${first.rule_ref} at ${first.checkpoint_id}.`) : null,
-      first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? h("p", { class: "banner grey" }, "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.") : h("p", { class: "muted small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
+    const cell = (k, val, cls) => h("div", { class: cls || null }, h("span", { class: "k" }, k), h("span", { class: "val" }, val));
+    body = [first ? [h("p", { class: "section-k" }, "First mismatch"),
+      h("div", { class: "strip", role: "group", "aria-label": `First mismatch: ${first.assertion_id} ${label(first.verdict)}. ${first.tx_role} expected ${first.expected}, observed ${first.observed} under ${first.rule_ref} at ${first.checkpoint_id}.` },
+        h("div", null, h("span", { class: "k" }, "assertion"), h("span", { class: "row tight" }, h("b", { class: "val" }, first.assertion_id), pill(first.verdict))),
+        cell("tx", first.tx_role),
+        cell("expected", first.expected),
+        h("span", { class: "arrow", "aria-hidden": "true" }, icon("arrow")),
+        cell("observed", first.observed, "bad"),
+        cell("rule", first.rule_ref),
+        cell("checkpoint", first.checkpoint_id))] : null,
+      first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.") : h("p", { class: "faint small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
       why ? h("p", { class: "muted small" }, why) : null];
     primary = h("span", { class: "row" },
-      h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, "Shrink"),
+      h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"),
       exportBtn(false));
   } else {
     const facts = missingFacts(m);
-    body = [h("p", null, h("b", null, "Missing facts"), " (inconclusive is never green):"), h("ul", { class: "facts" }, facts.slice(0, 12).map((f) => h("li", null, f))), facts.length > 12 ? h("p", { class: "muted small" }, `${facts.length - 12} more in the raw evidence.`) : null];
-    primary = h("button", { class: "btn primary", onclick: () => { ui.showRaw = !ui.showRaw; render(); if (ui.showRaw) document.getElementById("raw")?.scrollIntoView({ block: "start" }); } }, ui.showRaw ? "Hide raw evidence" : "View raw evidence");
+    body = [h("p", { class: "section-k" }, "Missing facts (inconclusive is never green)"), h("ul", { class: "facts missing" }, facts.slice(0, 12).map((f) => h("li", null, f))), facts.length > 12 ? h("p", { class: "faint small" }, `${facts.length - 12} more in the raw evidence.`) : null];
+    primary = h("button", { class: "btn primary", onclick: () => { ui.showRaw = !ui.showRaw; render(); if (ui.showRaw) document.getElementById("raw")?.scrollIntoView({ block: "start" }); } }, icon("eye"), ui.showRaw ? "Hide raw evidence" : "View raw evidence");
   }
 
   const banners = [
-    injected ? h("div", { class: "banner amber" }, `LOCAL INJECTED REGRESSION: sidecar built with ${injected.patch} on purpose. It demonstrates FrameLab; it is not an upstream bug.`) : null,
-    v.fault ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: deliberate fault ${v.fault.kind}@${v.fault.checkpoint_id}.`) : null,
-    v.run2_sidecar_build ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: run 2 used build ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}.`) : null,
-    v.cancelled ? h("div", { class: "banner grey" }, "Cancelled by the user.") : null,
-    v.compatibility && !v.compatibility.applicable ? h("div", { class: "banner grey" }, `NOT APPLICABLE to this target (${v.compatibility.target.eip8141}). No node was started and no assertion was judged; this is not a conformance failure.`) : null,
+    injected ? banner("amber", `LOCAL INJECTED REGRESSION: sidecar built with ${injected.patch} on purpose. It demonstrates FrameLab; it is not an upstream bug.`) : null,
+    v.fault ? banner("grey", `NEGATIVE-PATH TEST RUN: deliberate fault ${v.fault.kind}@${v.fault.checkpoint_id}.`) : null,
+    v.run2_sidecar_build ? banner("grey", `NEGATIVE-PATH TEST RUN: run 2 used build ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}.`) : null,
+    v.cancelled ? banner("grey", "Cancelled by the user.") : null,
+    v.compatibility && !v.compatibility.applicable ? banner("grey", `NOT APPLICABLE to this target (${v.compatibility.target.eip8141}). No node was started and no assertion was judged; this is not a conformance failure.`) : null,
   ];
+  const kindLabel = { run: "Run result", shrink: "Shrink result", bundle: "Exported bundle" }[m.kind] || m.kind;
 
   const summary = h("section", { class: `panel summary s-${state}` },
-    h("div", { class: "row" },
-      h("h2", null, v.scenario.id), pill(v.overall), h("span", { class: "muted" }, `exit ${v.exit_code}`),
-      h("span", { class: "muted mono small" }, `${v.sidecar_build.label}-${v.sidecar_build.buildHash.slice(0, 12)} · rules ${v.rule_pack.id}`),
+    h("div", { class: "sum-top" },
+      h("div", { class: "eyebrow" }, kindLabel, h("span", { class: "sep" }, "·"), h("span", { class: "mono" }, m.dir)),
       h("span", { class: "spacer" }),
-      h("button", { class: "btn", onclick: () => { ui.view = null; ui.sel = null; render(); } }, "Close")),
-    h("p", { class: "muted small mono" }, `${m.kind} · ${m.dir} · scenario ${v.scenario.hash.slice(0, 12)}`),
-    banners, body, h("div", { class: "row" }, primary));
+      h("button", { class: "btn ghost", "aria-label": "Close", "aria-keyshortcuts": "Escape", onclick: closeView }, icon("x"), "Close", h("kbd", { "aria-hidden": "true" }, "Esc"))),
+    h("div", { class: "sum-title" }, h("h2", null, v.scenario.id), pill(v.overall, "lg"), h("span", { class: "exit" }, `exit ${v.exit_code}`)),
+    h("div", { class: "meta-chips" },
+      metaChip("build", `${v.sidecar_build.label}-${v.sidecar_build.buildHash.slice(0, 12)}`, v.sidecar_build.buildHash),
+      metaChip("rules", v.rule_pack.id),
+      metaChip("scenario", v.scenario.hash.slice(0, 12), v.scenario.hash)),
+    banners, body, h("div", { class: "row actions" }, primary));
 
   const red = m.reduction;
+  const dims = ["total", "setup", "action", "checkpoints", "actors", "expectations"];
+  const bar = (name, n, of, strong) => h("div", { class: `bar${strong ? " strong" : ""}` }, h("span", null, name), h("span", { class: "track" }, h("i", { style: `--p:${of ? n / of : 0}` })), h("span", { class: "mono num" }, n));
   const reduction = red ? h("section", { class: "panel" },
-    h("h3", null, "Reduction"),
-    h("p", null, h("b", null, red.claim)),
+    h("div", { class: "panel-head" }, h("div", null, h("div", { class: "eyebrow" }, "Shrink · frozen target, deletions only"), h("h3", null, "Reduction"))),
+    red.reduced ? h("div", { class: "reduce" },
+      h("div", { class: "reduce-num" }, h("span", { class: "from" }, red.original.total), h("span", { class: "sr-only" }, " steps reduced to "), icon("arrow"), h("span", null, red.reduced.total), h("span", { class: "unit" }, "steps")),
+      h("div", { class: "bars", "aria-hidden": "true" }, bar("original", red.original.total, red.original.total), bar("reduced", red.reduced.total, red.original.total, true))) : null,
+    h("p", { class: "claim" }, red.claim),
     h("p", null, "Target, frozen and unchanged: ", h("b", null, red.target.assertion_id), " ", pill(red.target.verdict), ` on ${red.target.tx_role} under ${red.target.rule_ref} at ${red.target.checkpoint_id}.`),
-    red.reduced ? h("table", { class: "plain" }, h("thead", null, h("tr", null, h("th", null, ""), ["steps", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("th", null, k)))),
-      h("tbody", null, [["original", red.original], ["reduced", red.reduced]].map(([n, c]) => h("tr", null, h("th", null, n), ["total", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("td", null, c[k])))))) : h("p", null, "No smaller confirmed case."),
-    red.reduced ? [h("h4", null, "Removed steps"), h("div", { class: "chips" }, red.reduced.removed_units.map((u) => h("span", { class: "chip" }, u))),
-      red.reduced.removed_actors.length ? [h("h4", null, "Removed actors"), h("div", { class: "chips" }, red.reduced.removed_actors.map((u) => h("span", { class: "chip" }, u)))] : null] : null,
+    red.reduced ? h("div", { class: "table-wrap" }, h("table", { class: "plain" },
+      h("thead", null, h("tr", null, h("th", null, ""), ["steps", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("th", { class: "r" }, k)))),
+      h("tbody", null, [["original", red.original], ["reduced", red.reduced]].map(([n, c]) => h("tr", { class: n }, h("th", null, n), dims.map((k) => h("td", { class: "r mono num" }, c[k]))))))) : h("p", null, "No smaller confirmed case."),
+    red.reduced ? [h("h4", null, "Removed steps"), h("div", { class: "chips" }, red.reduced.removed_units.map((u) => h("span", { class: "chip removed" }, u))),
+      red.reduced.removed_actors.length ? [h("h4", null, "Removed actors"), h("div", { class: "chips" }, red.reduced.removed_actors.map((u) => h("span", { class: "chip removed" }, u)))] : null] : null,
     red.pruned_expectations?.length ? h("p", null, `Assertions removed from the reduced case because their preconditions no longer hold there: ${red.pruned_expectations.join(", ")}. No expected fate was edited.`) : null,
     red.final_confirmation ? [h("h4", null, "Final confirmation (two fresh runs)"), h("ul", { class: "facts" }, red.final_confirmation.reasons.map((r) => h("li", null, r)))] : null,
-    h("p", { class: "muted small" }, `stop: ${red.stop_reason} · attempted ${red.totals.node_tested}, kept ${red.totals.kept}, unresolved ${red.totals.unresolved}, rejected before a node run ${red.totals.invalid}, cached ${red.totals.cached} · ${secs(red.budget.wall_used_ms)} of ${secs(red.budget.wall_limit_ms)}`),
+    h("p", { class: "meta-line" }, `stop: ${red.stop_reason} · attempted ${red.totals.node_tested}, kept ${red.totals.kept}, unresolved ${red.totals.unresolved}, rejected before a node run ${red.totals.invalid}, cached ${red.totals.cached} · ${secs(red.budget.wall_used_ms)} of ${secs(red.budget.wall_limit_ms)}`),
     m.scenarioMin ? det("min-yaml", "scenario.min.yaml", h("pre", null, m.scenarioMin)) : null) : null;
 
   const compare = m.compare ? h("section", { class: "panel" }, h("h3", null, "Fix comparison"),
-    h("p", null, `${m.compare.scope}: old build ${m.compare.old_build.label}-${m.compare.old_build.buildHash.slice(0, 12)} → new build ${m.compare.new_build.label}-${m.compare.new_build.buildHash.slice(0, 12)}. Expectations were not changed.`),
-    h("table", { class: "plain" }, h("tbody", null, m.compare.rows.map((r) => h("tr", null, h("th", null, r.assertion_id), h("td", { class: "mono" }, r.before), h("td", null, "→"), h("td", { class: "mono" }, r.after), h("td", null, r.change)))))) : null;
+    h("p", { class: "muted" }, `${m.compare.scope}: old build ${m.compare.old_build.label}-${m.compare.old_build.buildHash.slice(0, 12)} → new build ${m.compare.new_build.label}-${m.compare.new_build.buildHash.slice(0, 12)}. Expectations were not changed.`),
+    h("div", { class: "table-wrap" }, h("table", { class: "plain" },
+      h("thead", null, h("tr", null, h("th", null, "assertion"), h("th", null, "before"), h("th", null, ""), h("th", null, "after"), h("th", null, "change"))),
+      h("tbody", null, m.compare.rows.map((r) => h("tr", null, h("th", { class: "mono" }, r.assertion_id), h("td", { class: "mono" }, r.before), h("td", { "aria-label": "becomes" }, icon("arrow")), h("td", { class: "mono" }, r.after), h("td", null, r.change))))))) : null;
 
   const raw = ui.showRaw ? h("section", { class: "panel", id: "raw" }, h("h3", null, "Raw evidence"),
     m.runs.map((r) => det(`raw-evidence-${r.k}`, `run ${r.k}: evidence.json`, h("pre", null, pretty(r.evidence))))) : null;
@@ -635,9 +1301,13 @@ function viewResult(state) {
 }
 
 // ---------- render loop ----------
-let pointerDown = false, deferredRender = false;
+let pointerDown = false, deferredRender = false, enterTimer = null;
 document.addEventListener("pointerdown", () => { pointerDown = true; }, true);
 document.addEventListener("pointerup", () => { pointerDown = false; if (deferredRender) { deferredRender = false; setTimeout(render, 0); } }, true);
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !ui.view || e.defaultPrevented || e.target.closest?.("select, input, textarea")) return;
+  closeView();
+});
 const focusKey = (el) => el && el !== document.body ? `${el.tagName}|${el.id || el.getAttribute("aria-label") || el.textContent.trim().slice(0, 80)}` : null;
 
 function render() {
@@ -655,11 +1325,33 @@ function render() {
     else if (state === "ready") content = viewReady();
     else content = viewEmpty();
   } catch (err) {
-    content = [h("section", { class: "panel" }, h("p", { class: "banner red", role: "alert" }, `This view could not be drawn: ${err.message}. The files on disk are unchanged.`),
-      ui.view ? h("button", { class: "btn", onclick: () => { ui.view = null; ui.sel = null; render(); } }, "Close") : null)];
+    content = [h("section", { class: "panel" }, banner("red", `This view could not be drawn: ${err.message}. The files on disk are unchanged.`),
+      ui.view ? h("button", { class: "btn", onclick: closeView }, icon("x"), "Close") : null)];
   }
-  app.replaceChildren(...[noticeBar(), ui.error ? h("div", { class: "banner red", role: "alert" }, ui.error, " ", h("button", { class: "linkish", onclick: () => poll(true) }, "Retry")) : null, ...content].filter(Boolean));
-  if (hadFocus) [...app.querySelectorAll("button, select, a, summary, input")].find((el) => focusKey(el) === hadFocus)?.focus({ preventScroll: true });
+  app.replaceChildren(...[noticeBar(), ui.error ? h("div", { class: "banner red", role: "alert" }, icon("alert"), h("div", null, ui.error), h("button", { class: "linkish", onclick: () => poll(true) }, "Retry")) : null, ...content].filter(Boolean));
+  // Entrance motion only when the view itself changes; poll re-renders stay still.
+  const key = `${state}|${ui.view?.dir || ""}`;
+  if (key !== ui.lastKey) {
+    // A new view starts at its summary, not wherever the saved-results list was scrolled to.
+    if (ui.lastKey) window.scrollTo({ top: 0 });
+    ui.lastKey = key;
+    app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter");
+    clearTimeout(enterTimer); enterTimer = setTimeout(() => app.classList.remove("enter"), 600);
+  }
+  for (const pre of app.querySelectorAll("pre[data-joblog]")) pre.scrollTop = pre.scrollHeight;
+  // On open (and on a run switch) bring the selected cell into the matrix viewport, right of the sticky role column.
+  if (ui.scrollSel) {
+    ui.scrollSel = false;
+    const cell = app.querySelector("table.timeline .cell[aria-pressed='true']");
+    const wrap = cell?.closest(".grid-wrap");
+    if (wrap) {
+      const stick = wrap.querySelector("tbody th")?.offsetWidth ?? 0;
+      const cr = cell.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+      const visible = wr.width - stick;
+      wrap.scrollLeft = Math.max(0, wrap.scrollLeft + (cr.left - wr.left) - stick - Math.max(16, (visible - cr.width) / 2));
+    }
+  }
+  if (hadFocus) [...app.querySelectorAll("button, select, a, summary, input, label[tabindex]")].find((el) => focusKey(el) === hadFocus)?.focus({ preventScroll: true });
 }
 
 let timer = null;
@@ -671,7 +1363,11 @@ async function poll(once) {
     const s = await api("GET", "/api/state");
     const sig = JSON.stringify({ ...s, job: s.job ? { ...s.job, log: undefined } : null });
     const pre = document.querySelector("pre[data-joblog]");
-    if (pre && s.job) pre.textContent = s.job.log.join("\n") || "…";
+    if (pre && s.job) {
+      const atEnd = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 24;
+      pre.textContent = s.job.log.join("\n") || "…";
+      if (atEnd) pre.scrollTop = pre.scrollHeight;
+    }
     changed = changed || sig !== ui.lastSig || Boolean(ui.error);
     ui.lastSig = sig; ui.server = s; ui.error = null;
     const job = s.job;
@@ -688,8 +1384,10 @@ async function poll(once) {
   timer = setTimeout(() => poll(false), fast ? 1000 : 4000);
 }
 setInterval(() => {
-  for (const el of document.querySelectorAll("[data-since]")) el.textContent = mmss(Date.now() - Number(el.dataset.since));
-  for (const el of document.querySelectorAll("[data-until]")) el.textContent = mmss(Number(el.dataset.until) - Date.now());
+  const now = Date.now();
+  for (const el of document.querySelectorAll("[data-since]")) el.textContent = mmss(now - Number(el.dataset.since));
+  for (const el of document.querySelectorAll("[data-until]")) el.textContent = mmss(Number(el.dataset.until) - now);
+  for (const el of document.querySelectorAll("[data-meter-from]")) el.style.setProperty("--p", Math.min(1, Math.max(0, (now - Number(el.dataset.meterFrom)) / Number(el.dataset.meterLen))).toFixed(4));
 }, 1000);
 
 if (location.protocol === "file:") { ui.mode = "file"; render(); } else poll(true);
