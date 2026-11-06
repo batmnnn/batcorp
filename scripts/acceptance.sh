@@ -135,7 +135,8 @@ step a7-mismatch 2 "compare refuses an unrelated pair" fl compare "$R/a1-s1" "$R
 
 # 8. Server guards (the UI states were exercised by hand; see §18.5).
 PORT=4199
-fl serve --port "$PORT" >"$LOGS/a8-serve.log" 2>&1 &
+# Background jobs of a non-interactive shell ignore SIGINT, so start bun itself and stop it with SIGTERM.
+bun "$ROOT/src/cli.ts" serve --port "$PORT" >"$LOGS/a8-serve.log" 2>&1 &
 SERVE_PID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && break; sleep 0.2; done
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
@@ -150,8 +151,9 @@ expect_status a8-host 403 "foreign Host header refused" -H "Host: attacker.examp
 expect_status a8-post 403 "POST without the FrameLab header refused" -X POST "http://127.0.0.1:$PORT/api/cancel"
 expect_status a8-path 403 "path outside bundles/ and .runs/ refused" "http://127.0.0.1:$PORT/api/view?dir=/etc"
 expect_status a8-dotdot 403 "relative escape refused" "http://127.0.0.1:$PORT/api/view?dir=bundles/../../.."
-kill -INT "$SERVE_PID" 2>/dev/null
+kill -TERM "$SERVE_PID" 2>/dev/null
 wait "$SERVE_PID" 2>/dev/null
+if curl -s -o /dev/null "http://127.0.0.1:$PORT/"; then record a8-stopped UNMET "still answering" 0 "test server stopped"; else record a8-stopped ok "not answering" 0 "test server stopped"; fi
 
 # 9. A scenario for another codec is not applicable, and is not a failure.
 step a9 2 "current-codec scenario is INCONCLUSIVE before any node starts" fl run scenarios/negative/s1-current-codec.yaml --out "$R/a9"
