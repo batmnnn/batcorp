@@ -504,7 +504,7 @@ function detailPanel(run, cols, roles) {
 function timeline() {
   const m = ui.view;
   const run = m.runs.find((r) => r.k === ui.run) || m.runs[0];
-  if (!run) return h("section", { class: "panel" }, h("p", { class: "muted" }, "No run evidence in this folder."));
+  if (!run) return h("section", { class: "panel" }, h("p", { class: "muted" }, m.verdicts.compatibility?.applicable === false ? "Nothing ran on a node, so there is no timeline." : "No run evidence in this folder."));
   const cols = columnsOf(run);
   const roles = rolesOf(cols);
   const tabs = h("div", { class: "tabs", role: "tablist", "aria-label": "Run" }, m.runs.map((r) =>
@@ -537,6 +537,8 @@ function timeline() {
 /** Run-level causes first, then per-assertion ones; a fact seen in several runs is listed once. */
 function missingFacts(m) {
   const facts = [];
+  for (const r of m.verdicts.compatibility?.applicable === false ? m.verdicts.compatibility.reasons : []) facts.push(`Not applicable: ${r}`);
+  if (m.verdicts.not_run?.length) facts.push(`Not run: ${m.verdicts.not_run.join(", ")}`);
   const dis = m.verdicts.disagreements || [];
   if (m.verdicts.cancelled) {
     if (dis.length) facts.push(`The cancelled run stopped early, so the two runs cannot be compared (${dis.length} differences not listed).`);
@@ -596,6 +598,7 @@ function viewResult(state) {
     v.fault ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: deliberate fault ${v.fault.kind}@${v.fault.checkpoint_id}.`) : null,
     v.run2_sidecar_build ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: run 2 used build ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}.`) : null,
     v.cancelled ? h("div", { class: "banner grey" }, "Cancelled by the user.") : null,
+    v.compatibility && !v.compatibility.applicable ? h("div", { class: "banner grey" }, `NOT APPLICABLE to this target (${v.compatibility.target.eip8141}). No node was started and no assertion was judged; this is not a conformance failure.`) : null,
   ];
 
   const summary = h("section", { class: `panel summary s-${state}` },

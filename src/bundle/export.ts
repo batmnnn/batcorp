@@ -87,6 +87,13 @@ export interface ExportOptions {
 }
 
 export async function exportBundle(opts: ExportOptions): Promise<{ manifest: BundleManifest | null; findings: ScanFinding[] }> {
+  const verdictsFile = path.join(opts.srcDir, "verdicts.json");
+  if (await exists(verdictsFile)) {
+    const compatibility = JSON.parse(await readFile(verdictsFile, "utf8")).compatibility;
+    if (compatibility && !compatibility.applicable) {
+      throw new Error(`${opts.srcDir} is not applicable to this target (${compatibility.reasons.join("; ")}); nothing ran on a node, so there is nothing to export`);
+    }
+  }
   for (const f of REQUIRED) if (!(await exists(path.join(opts.srcDir, f)))) throw new Error(`not a complete run directory: ${f} is missing in ${opts.srcDir}`);
   const verdicts = JSON.parse(await readFile(path.join(opts.srcDir, "verdicts.json"), "utf8"));
   const meta1: RunMeta = JSON.parse(await readFile(path.join(opts.srcDir, "run1/meta.json"), "utf8"));

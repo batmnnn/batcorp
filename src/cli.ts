@@ -10,6 +10,7 @@ import { ETHREX_PIN, SIDECAR_PIN } from "./env/pins.ts";
 import { EngineStepper } from "./env/stepper.ts";
 import { exec } from "./util/proc.ts";
 import { ensureSidecarBuild, startSidecar, stopSidecar, type SidecarBuild, type SidecarHandle } from "./env/sidecar.ts";
+import { checkCompatibility, type Compatibility } from "./oracle/compat.ts";
 import { loadRulePack, verifyRulePack, type LoadedRulePack } from "./oracle/rulepack.ts";
 import { combineRuns, exitCode, judgeRun, type RunVerdict } from "./oracle/verdict.ts";
 import type { ShrinkTarget } from "./reducer/candidate.ts";
@@ -38,18 +39,55 @@ interface Prepared {
   cancel: { requested: boolean };
 }
 
+/** Nothing ran: the scenario or its rule pack does not fit the pinned target. The verdict is already written. */
+class NotApplicable extends Error {
+  constructor(readonly outDir: string, readonly reasons: string[]) {
+    super(`not applicable to this target: ${reasons.join("; ")}`);
+  }
+}
+
 async function prepare(file: string, label: string, patches: string[], out: string | undefined, kind: string): Promise<Prepared> {
   const loaded = await loadScenario(file);
-  const rulePack = await loadRulePack(path.join(FRAMELAB_ROOT, "rulepacks", `${loaded.scenario.rule_pack}.json`));
-  const badQuotes = (await verifyRulePack(rulePack.pack, SIDECAR_PIN.dir)).filter((c) => !c.hashOk || !c.quoteFound);
-  if (badQuotes.length > 0) throw new Error(`rule pack ${rulePack.pack.id} does not match its pinned source: ${JSON.stringify(badQuotes)}`);
-  const build = await ensureSidecarBuild(label, [OBSERVE_PATCH, ...patches.map((p) => path.resolve(p))]);
+  let rulePack: LoadedRulePack | null = null;
+  let packError: string | undefined;
+  try {
+    rulePack = await loadRulePack(path.join(FRAMELAB_ROOT, "rulepacks", `${loaded.scenario.rule_pack}.json`));
+  } catch (err) {
+    packError = (err as Error).message.replaceAll(FRAMELAB_ROOT, "$FRAMELAB");
+  }
+  const compat = checkCompatibility(loaded.scenario, rulePack?.pack ?? null, packError);
   const outDir = path.resolve(out ?? path.join(FRAMELAB_ROOT, ".runs", `${kind}-${loaded.scenario.id}-${label}-${Date.now()}`));
   await mkdir(outDir, { recursive: true });
   const progressFile = path.join(outDir, "progress.jsonl");
   const progress = (event: Record<string, unknown>) => appendFileSync(progressFile, `${JSON.stringify({ at: Date.now(), ...event })}\n`);
+  if (!rulePack || !compat.applicable) {
+    progress({ kind: "start", command: kind, scenario: loaded.scenario.id, build: "not built" });
+    await writeNotApplicable(outDir, loaded, rulePack, label, compat);
+    progress({ kind: "done", overall: "INCONCLUSIVE", exit_code: exitCode("INCONCLUSIVE"), dir: outDir });
+    throw new NotApplicable(outDir, compat.reasons);
+  }
+  const badQuotes = (await verifyRulePack(rulePack.pack, SIDECAR_PIN.dir)).filter((c) => !c.hashOk || !c.quoteFound);
+  if (badQuotes.length > 0) throw new Error(`rule pack ${rulePack.pack.id} does not match its pinned source: ${JSON.stringify(badQuotes)}`);
+  const build = await ensureSidecarBuild(label, [OBSERVE_PATCH, ...patches.map((p) => path.resolve(p))]);
   progress({ kind: "start", command: kind, scenario: loaded.scenario.id, build: `${build.label}-${build.buildHash.slice(0, 12)}` });
   return { loaded, rulePack, build, outDir, progress, cancel: { requested: false } };
+}
+
+async function writeNotApplicable(outDir: string, loaded: LoadedScenario, rulePack: LoadedRulePack | null, label: string, compat: Compatibility) {
+  const summary = {
+    scenario: { id: loaded.scenario.id, hash: loaded.hash },
+    rule_pack: { id: loaded.scenario.rule_pack, hash: rulePack?.hash ?? null },
+    sidecar_build: { label, buildHash: "not-built", commit: SIDECAR_PIN.commit, patches: [], dir: "" },
+    compatibility: compat,
+    overall: "INCONCLUSIVE",
+    exit_code: exitCode("INCONCLUSIVE"),
+    not_run: loaded.scenario.expectations.map((e) => e.assertion_id),
+    disagreements: [],
+    excluded_from_comparison: EXCLUDED_FROM_COMPARISON,
+    runs: [],
+  };
+  await writeFile(path.join(outDir, "verdicts.json"), JSON.stringify(summary, null, 2));
+  await writeFile(path.join(outDir, "scenario.original.yaml"), loaded.text);
 }
 
 /** Shrink candidates pass `cancellable: false`: a stop request finishes the current candidate (§5.4). */
@@ -429,6 +467,11 @@ if (!handler) {
 try {
   process.exit(await handler(rest));
 } catch (err) {
+  if (err instanceof NotApplicable) {
+    for (const reason of err.reasons) console.log(`NOT APPLICABLE ${reason}`);
+    console.log(`INCONCLUSIVE (exit 2): no node was started -> ${err.outDir}`);
+    process.exit(exitCode("INCONCLUSIVE"));
+  }
   console.error(`framelab ${command}: ${process.env.FRAMELAB_DEBUG ? ((err as Error).stack ?? String(err)) : ((err as Error).message ?? String(err))}`);
   process.exit(2);
 }
