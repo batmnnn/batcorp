@@ -260,7 +260,7 @@ async function cmdCompare(argv: string[]): Promise<number> {
     });
   if (only && reduction) {
     const t = rows[0];
-    console.log(`reduced-case replay: target ${only} expected ${reduction.target.verdict}, got ${t?.after ?? "missing"}`);
+    console.log(`reduced case: only the shrink target ${only} is compared; the bundle recorded ${reduction.target.verdict}, the new run gives ${t?.after ?? "missing"}`);
   }
   for (const r of rows) console.log(`${r.assertion_id.padEnd(10)} ${r.before.padEnd(30)} -> ${r.after.padEnd(30)} ${r.change}`);
   await writeFile(path.join(newDir, "compare.json"), JSON.stringify({ old: oldDir, new: newDir, scope: only ? `target ${only} only` : "all assertions", old_build: before.sidecar_build, new_build: after.sidecar_build, rows, new_overall: after.overall }, null, 2));
