@@ -106,7 +106,7 @@ export async function exportBundle(opts: ExportOptions): Promise<{ manifest: Bun
   const sanitize = (text: string) => text.split(opts.framelabRoot).join("$FRAMELAB").split(path.resolve(VENDOR_DIR)).join("$VENDOR").split(home).join("~");
   const files: Record<string, string> = {};
   const put = async (rel: string, content: string) => {
-    await writeFile(path.join(opts.bundleDir, rel), content);
+    await writeFile(path.join(opts.bundleDir, rel), content, { mode: rel.endsWith(".sh") ? 0o755 : 0o644 });
     files[rel] = sha256(content);
   };
 
