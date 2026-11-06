@@ -7,777 +7,509 @@
 <meta name="description" content="FrameLab: release check for alt-mempool nodes. Local only.">
 <!-- Local only: no fonts, scripts or images are fetched from anywhere; the API is same-origin. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230c0e12'/%3E%3Cpath d='M8 13V8h5M19 8h5v5M24 19v5h-5M13 24H8v-5' stroke='%2300f1fd' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='13' y='13' width='6' height='6' rx='1.5' fill='%23ff5070'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e201e'/%3E%3Cpath d='M6 11h3.5M14.5 11H26M6 21h11.5M22.5 21H26' stroke='%23ecdfcc' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='11' r='2.5' fill='none' stroke='%2386bcbd' stroke-width='2'/%3E%3Ccircle cx='20' cy='21' r='2.5' fill='none' stroke='%2386bcbd' stroke-width='2'/%3E%3C/svg%3E">
 <title>FrameLab</title>
 <style>
-/* ============ tokens ============ */
+/* Palette "Notebook", from Color Hunt: base colorhunt.co/palette/1e201e3c3d37697565ecdfcc,
+   status from colorhunt.co/palette/ba5a5af7e49ba4ce8b86bcbd, …/c3e2c2eaecccdbcc95cd8d7a, …/b0c5a4d37676ebc49ff1ef99.
+   Design rules follow unslop by Damir Sokolovsky (github.com/heydamir/unslop), CC BY 4.0. */
 :root {
   color-scheme: dark;
-  --bg: #111318;
-  --surface-lowest: rgba(12, 14, 18, 0.84);
-  --surface-0: rgba(20, 23, 29, 0.76);
-  --surface-1: rgba(26, 28, 32, 0.72);
-  --surface-2: rgba(34, 37, 43, 0.76);
-  --surface-3: rgba(51, 53, 57, 0.82);
-  --glass-blur: saturate(180%) blur(20px);
-  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --line: rgba(230, 188, 191, 0.11);
-  --line-2: rgba(230, 188, 191, 0.20);
-  --line-3: rgba(0, 241, 253, 0.44);
-  --text: #e2e2e8;
-  --text-2: #e6bcbf;
-  --text-3: #ac888a;
-  --hi: #ffffff;
-  --ring: #00f1fd;
-  --brand: #ff5070;   --brand-2: #ffb2b9; --brand-bg: rgba(255, 80, 112, 0.16); --brand-line: rgba(255, 80, 112, 0.52);
-  --cyan: #00f1fd;    --cyan-2: #6ff6ff;  --cyan-bg: rgba(0, 241, 253, 0.13);   --cyan-line: rgba(0, 241, 253, 0.42);
-  --cobalt: #00f1fd;  --cobalt-bg: rgba(0, 241, 253, 0.13); --cobalt-line: rgba(0, 241, 253, 0.38);
-  --pass: #4edea3;    --pass-bg: rgba(78, 222, 163, 0.14);  --pass-line: rgba(78, 222, 163, 0.44);
-  --inv: #6ff6ff;     --inv-bg: rgba(111, 246, 255, 0.14);  --inv-line: rgba(111, 246, 255, 0.44);
-  --fail: #ff5070;    --fail-bg: rgba(255, 80, 112, 0.16);  --fail-line: rgba(255, 80, 112, 0.48);
-  --inc: #e6bcbf;     --inc-bg: rgba(230, 188, 191, 0.10);  --inc-line: rgba(230, 188, 191, 0.28);
-  --amber: #ffb4ab;   --amber-bg: rgba(255, 180, 171, 0.14); --amber-line: rgba(255, 180, 171, 0.44);
-  --live: #ff5070;
-  --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
-  --mono: "JetBrains Mono", "Geist Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --t-1: 100ms; --t-2: 150ms; --t-3: 220ms;
-  --top-h: 64px;
-  --z-base: 1; --z-sticky: 2; --z-top: 40;
+  --page: #1e201e;
+  --raised: #3c3d37;
+  --card: color-mix(in srgb, #1e201e 68%, #3c3d37);
+  --well: color-mix(in srgb, #1e201e 82%, #000);
+  --text: #ecdfcc;
+  --text-2: color-mix(in srgb, #ecdfcc 78%, #1e201e);
+  --text-3: color-mix(in srgb, #ecdfcc 60%, #1e201e);
+  --sage: #697565;
+  --line: color-mix(in srgb, #ecdfcc 9%, transparent);
+  --line-2: color-mix(in srgb, #ecdfcc 15%, transparent);
+  --accent: #86bcbd;
+  --pass: #a4ce8b;
+  --fail: #d37676;
+  --warn: #dbcc95;
+  --tint-accent: color-mix(in srgb, #86bcbd 11%, transparent);
+  --tint-fail: color-mix(in srgb, #d37676 9%, transparent);
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-tag: 6px; --r-btn: 8px; --r-card: 12px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t: 160ms;
 }
 
 /* ============ base ============ */
-* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(230, 188, 191, 0.22) transparent; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(230, 188, 191, 0.22); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-::selection { background: #ff5070; color: #40000f; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--top-h) + 16px); }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 112px; scrollbar-color: var(--line-2) transparent; }
 body {
-  margin: 0; min-height: 100dvh; color: var(--text);
-  background-color: var(--bg);
-  background-image:
-    radial-gradient(920px 520px at 85% 10%, rgba(0, 241, 253, 0.10), transparent 65%),
-    radial-gradient(780px 480px at 14% 12%, rgba(255, 80, 112, 0.12), transparent 62%),
-    radial-gradient(860px 500px at 50% 96%, rgba(78, 222, 163, 0.07), transparent 70%),
-    linear-gradient(180deg, #0c0e12 0%, #111318 100%);
-  background-attachment: fixed;
-  font: 13.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  margin: 0; min-height: 100dvh; background: var(--page); color: var(--text);
+  font: 400 14px/1.5 var(--sans); font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; }
-h3 { font-size: 16px; letter-spacing: 0.02em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 10px; color: var(--hi); }
-h3::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--brand); display: inline-block; box-shadow: 0 0 10px var(--brand); flex: none; }
-h4 { font-size: 11px; font-weight: 600; font-family: var(--mono); color: var(--text-2); letter-spacing: 0.06em; text-transform: uppercase; margin: 20px 0 8px; }
-p { margin: 8px 0; text-wrap: pretty; max-width: 78ch; }
-a { color: var(--cyan-2); text-decoration: underline; text-decoration-color: rgba(111, 246, 255, 0.38); text-underline-offset: 3px; transition: text-decoration-color var(--t-2) var(--ease); }
+::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+h1, h2, h3, h4 { margin: 0; font-weight: 500; line-height: 1.3; text-wrap: balance; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+h4 { font-size: 13px; color: var(--text-2); margin: 20px 0 8px; }
+p { margin: 8px 0; max-width: 72ch; text-wrap: pretty; }
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); transition: text-decoration-color var(--t) var(--ease); }
 a:hover { text-decoration-color: currentColor; }
-a .ic { width: 12px; height: 12px; margin-left: 3px; vertical-align: -1px; }
+a .ic { width: 12px; height: 12px; margin-left: 4px; vertical-align: -1px; }
 code, .mono, pre, kbd { font-family: var(--mono); font-variant-ligatures: none; }
-.mono { font-size: 12px; letter-spacing: 0.02em; }
-code { font-size: 11.5px; padding: 2px 6px; border-radius: var(--r-sm); background: var(--surface-3); border: 1px solid var(--line-2); color: var(--cyan-2); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.mono { font-size: 13px; }
+code { font-size: 12px; padding: 1px 4px; border-radius: 4px; background: var(--line); color: var(--text); }
 button, select, input { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .muted { color: var(--text-2); }
 .faint { color: var(--text-3); }
 .small { font-size: 12px; }
 .num { font-variant-numeric: tabular-nums; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.row.tight { gap: 6px 8px; }
+.row.tight { gap: 4px 8px; }
 .spacer { flex: 1; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tone-pass { color: var(--pass); }
+.tone-fail { color: var(--fail); }
+.tone-warn { color: var(--warn); }
+.tone-inc { color: var(--text-3); }
+.tone-accent { color: var(--accent); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot { animation: breathe 1.6s var(--ease) infinite; animation-delay: var(--ph, 0ms); }
+}
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-/* ============ top bar ============ */
+/* ============ top bar: the one glass layer, over content that scrolls under it ============ */
 .top {
-  position: sticky; top: 0; z-index: var(--z-top);
-  background: rgba(12, 14, 18, 0.86); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--page) 80%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.42);
 }
-.top-inner { max-width: 1480px; margin: 0 auto; height: var(--top-h); padding: 0 24px; display: flex; align-items: center; gap: 14px; }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.mark {
-  width: 32px; height: 32px; border-radius: var(--r-md); display: grid; place-items: center; flex: none;
-  background: var(--surface-2); border: 1px solid var(--brand-line); color: var(--brand-2); box-shadow: var(--glass-shine);
+.top-inner { max-width: 1200px; margin: 0 auto; height: 52px; padding: 0 24px; display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand .mark { width: 18px; height: 18px; color: var(--text-2); }
+.brand-name { font-weight: 500; font-size: 15px; white-space: nowrap; }
+.ctx { margin-left: 8px; color: var(--text-3); font: 12px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--text-3); white-space: nowrap; }
+.conn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pass); }
+.conn.lost .dot { background: var(--fail); }
+.conn.lost { color: var(--fail); }
+.conn.file .dot { background: var(--text-3); }
+
+.states-pop { position: relative; }
+.states-pop > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 10px;
+  border-radius: var(--r-btn); border: 1px solid var(--line); font-size: 13px; white-space: nowrap;
+  transition: background-color var(--t) var(--ease);
 }
-.mark .ic { width: 18px; height: 18px; }
-.mark .ic path:last-child { fill: var(--brand); stroke: none; }
-.brand-name { font-weight: 700; font-size: 17px; letter-spacing: -0.02em; color: var(--hi); white-space: nowrap; }
-.brand-sub { color: var(--text-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* the eight workbench states (spec §7) as a compact index: every state is listed, only the current one is named */
-.state-ind {
-  margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 12px;
-  background: var(--surface-0); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--line-2); border-radius: var(--r-md); box-shadow: var(--glass-shine);
+.states-pop > summary::-webkit-details-marker { display: none; }
+.states-pop > summary:hover { background: var(--line); }
+.states-pop > summary > .ic:last-child { width: 12px; height: 12px; color: var(--text-3); transform: rotate(90deg); transition: transform var(--t) var(--ease); }
+.states-pop[open] > summary > .ic:last-child { transform: rotate(-90deg); }
+.status.tone-pass > :first-child { color: var(--pass); }
+.status.tone-fail > :first-child { color: var(--fail); }
+.status.tone-inc > :first-child { color: var(--text-3); }
+.status.tone-accent > :first-child { color: var(--accent); }
+.status { color: var(--text); }
+.pop {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: 280px; padding: 12px 16px;
+  border-radius: var(--r-card); border: 1px solid var(--line-2);
+  background: color-mix(in srgb, var(--raised) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(24px); backdrop-filter: saturate(1.8) blur(24px);
 }
-.state-k { font: 500 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
-.states { display: flex; align-items: center; gap: 3px; list-style: none; margin: 0; padding: 0; }
-.states li { display: flex; align-items: center; }
-.states li .tick { width: 3px; height: 11px; border-radius: 1px; background: var(--line-2); flex: none; transition: background-color var(--t-2) var(--ease); }
-.states li.unbuilt .tick { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); }
-.states li .nm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.states li[aria-current="step"] .tick { height: 13px; width: 4px; background: var(--state-c, var(--brand)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-c, var(--brand)) 26%, transparent); }
-.states li[aria-current="step"] .nm {
-  position: static; width: auto; height: auto; clip: auto; overflow: visible; margin: 0 2px 0 7px; padding: 2px 7px;
-  border-radius: var(--r-sm); background: var(--brand); color: #40000f;
-  font: 700 10.5px/1.2 var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
-}
-.states li[data-s="running"], .states li[data-s="shrinking"] { --state-c: var(--brand); }
-.states li[data-s="pass"] { --state-c: var(--pass); }
-.states li[data-s="fail"] { --state-c: var(--fail); }
-.states li[data-s="inconclusive"] { --state-c: var(--inc); }
-.conn {
-  flex: none; display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px;
-  background: var(--surface-0); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--line-2); border-radius: var(--r-md); box-shadow: var(--glass-shine);
-  font: 500 11px var(--mono); color: var(--text); white-space: nowrap;
-}
-.conn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pass); box-shadow: 0 0 0 3px var(--pass-bg); }
-.conn.file .dot { background: var(--inc); box-shadow: 0 0 0 3px var(--inc-bg); }
-.conn.lost .dot { background: var(--fail); box-shadow: 0 0 0 3px var(--fail-bg); }
-@media (max-width: 1100px) { .brand-sub { display: none; } }
-@media (max-width: 760px) {
-  .top { position: static; }
-  .top-inner { height: auto; flex-wrap: wrap; padding: 12px 16px; row-gap: 10px; }
-  .state-k { display: none; }
-  .conn { order: 3; margin-left: 0; }
-  .state-ind { order: 2; }
-}
+.pop p { margin: 0 0 8px; }
+.pop ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.pop li { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+.pop li .dotk { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); flex: none; }
+.pop li[aria-current] { color: var(--text); }
+.pop li[aria-current] .dotk { background: var(--accent); }
+.pop li.unbuilt { color: var(--text-3); }
+.pop li.unbuilt .dotk { background: transparent; box-shadow: inset 0 0 0 1px var(--text-3); }
+
+/* ============ the six stages, in the glass bar ============ */
+.track-wrap { position: relative; overflow-x: auto; scrollbar-width: none; }
+.track-wrap::-webkit-scrollbar { display: none; }
+.track { list-style: none; max-width: 1200px; margin: 0 auto; padding: 0 24px; height: 40px; display: flex; align-items: stretch; gap: 20px; }
+.stage { display: flex; }
+.stage .in { display: flex; align-items: center; gap: 6px; color: var(--text-3); text-decoration: none; font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color var(--t) var(--ease); }
+a.in:hover { color: var(--text); }
+.stage .g { display: inline-grid; place-items: center; width: 16px; height: 16px; }
+.stage .g .ic { width: 14px; height: 14px; }
+.st-todo .g, .st-skip .g { color: var(--text-3); opacity: 0.7; }
+.st-done .in, .st-pass .in, .st-fail .in, .st-inc .in, .st-warn .in, .st-next .in, .st-open .in, .st-live .in { color: var(--text-2); }
+.st-done .g, .st-inc .g { color: var(--text-3); }
+.st-pass .g { color: var(--pass); }
+.st-fail .g { color: var(--fail); }
+.st-warn .g { color: var(--warn); }
+.st-next .g, .st-open .g { color: var(--accent); }
+.stage[aria-current] .in { color: var(--text); border-bottom-color: var(--accent); }
+.sum-now { margin-left: auto; align-self: center; color: var(--text-3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 42%; }
 
 /* ============ layout ============ */
-main { position: relative; z-index: var(--z-base); max-width: 1480px; margin: 0 auto; padding: 24px 24px 72px; display: grid; gap: 20px; }
-@media (max-width: 760px) { main { padding: 14px 12px 56px; gap: 14px; } }
-.card {
-  position: relative; min-width: 0; overflow: hidden;
-  background: var(--surface-lowest);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--line); border-radius: var(--r-xl); padding: 20px 22px 22px;
-  box-shadow: var(--glass-shine), 0 18px 44px rgba(0, 0, 0, 0.52);
-}
-.card.focus {
-  padding: 22px 24px 24px; border-color: var(--line-2);
-  background:
-    radial-gradient(540px 320px at 88% 22%, rgba(0, 241, 253, 0.12), transparent 72%),
-    radial-gradient(460px 280px at 12% 88%, rgba(255, 80, 112, 0.12), transparent 70%),
-    linear-gradient(155deg, rgba(16, 19, 25, 0.90) 0%, rgba(12, 14, 18, 0.94) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 22px 54px rgba(0, 0, 0, 0.62);
-}
-@media (max-width: 760px) { .card, .card.focus { padding: 16px 14px 18px; border-radius: 10px; } }
-
-/* ============ process track: spec §6, six stages every check goes through ============ */
-.track-wrap {
-  position: relative; overflow-x: auto; scrollbar-width: none; margin: 0; padding: 0;
-  display: grid; gap: 10px;
-}
-.track-wrap::-webkit-scrollbar { display: none; }
-.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 1120px) { .track { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .track { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.stage { position: relative; min-width: 0; --sc: var(--cyan-2); }
-.stage > .in {
-  position: relative; display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; height: 100%; min-height: 128px;
-  padding: 14px 14px 12px; border-radius: var(--r-lg);
-  background: var(--surface-1);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--line); box-shadow: var(--glass-shine), 0 8px 24px rgba(0, 0, 0, 0.36);
-  color: inherit; text-decoration: none; overflow: hidden;
-  transition: background var(--t-2) var(--ease), border-color var(--t-2) var(--ease), transform var(--t-2) var(--ease);
-}
-.stage > .in::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: var(--sc); opacity: 0.65; transition: height var(--t-2) var(--ease), opacity var(--t-2) var(--ease);
-}
-a.in:hover { background: var(--surface-2); border-color: var(--line-2); transform: translateY(-1px); }
-a.in:hover::before { opacity: 1; }
-.stage .st-top { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.stage .n { font: 700 11px/1.3 var(--mono); letter-spacing: 0.06em; color: var(--sc); text-transform: uppercase; }
-.stage[aria-current="step"] .n { color: var(--brand-2); }
-.stage .now { margin-left: auto; font: 600 10px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--sc); padding: 3px 6px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--sc) 14%, transparent); }
-.stage .nm { position: relative; z-index: 1; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; color: var(--hi); }
-.stage .sum { position: relative; z-index: 1; font-size: 12px; line-height: 1.42; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.stage .g { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--sc); }
-.stage .g .ic { width: 13px; height: 13px; stroke-width: 2.2; }
-.stage .g .live-dot { width: 8px; height: 8px; }
-.stage .bar { position: relative; z-index: 1; height: 3px; margin-top: 6px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
-.stage .bar i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--sc); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform var(--t-3) var(--ease); }
-.st-skip .bar { background: repeating-linear-gradient(90deg, var(--line-2) 0 4px, transparent 4px 8px); }
-.bar.indet i { width: 34%; transform: none; }
-.st-done { --sc: var(--cyan-2); }
-.st-pass { --sc: var(--pass); }
-.st-fail { --sc: var(--fail); }
-.st-inc { --sc: var(--inc); }
-.st-warn { --sc: var(--amber); }
-.st-live { --sc: var(--brand); }
-.st-next { --sc: var(--brand); }
-.st-open { --sc: var(--cyan-2); }
-.st-todo { --sc: var(--text-3); }
-.st-skip { --sc: var(--text-3); }
-.st-todo .nm, .st-skip .nm { color: var(--text-2); }
-.st-todo .sum, .st-skip .sum { color: var(--text-3); }
-.stage[aria-current="step"] > .in {
-  background: linear-gradient(160deg, rgba(255, 80, 112, 0.14) 0%, rgba(26, 28, 32, 0.88) 70%);
-  border-color: var(--brand-line);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 24px rgba(255, 80, 112, 0.18);
-}
-.stage[aria-current="step"] > .in::before { height: 4px; background: var(--brand); opacity: 1; }
-
-/* ============ focus card: the stage you are in ============ */
-.focus-top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; }
-.kicker {
-  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0;
-  padding: 4px 10px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line);
-  font: 500 10.5px/1.3 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-2);
-}
-.kicker .kname { color: var(--hi); font-weight: 700; }
-.kicker .sep { color: var(--text-3); }
-.kicker .mono { font-size: 10.5px; color: var(--cyan-2); overflow-wrap: anywhere; }
-.sn {
-  display: inline-grid; place-items: center; min-width: 24px; height: 18px; padding: 0 5px; flex: none; border-radius: 3px;
-  font: 700 10.5px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--cyan-2); background: var(--cyan-bg); border: 1px solid var(--cyan-line);
-}
-.focus .kicker .sn { background: var(--brand); color: #40000f; border-color: transparent; }
-.headline { margin: 14px 0 0; max-width: 32ch; font-size: 30px; font-weight: 700; line-height: 1.15; letter-spacing: -0.025em; color: var(--hi); }
-.headline.xl { font-size: 42px; line-height: 1.08; letter-spacing: -0.03em; max-width: 22ch; }
-.headline b { font-weight: inherit; color: var(--hl, var(--brand)); }
-.headline > span { color: var(--cyan-2); }
-.s-pass { --hl: var(--pass); }
-.s-fail { --hl: var(--fail); }
-.s-inconclusive { --hl: var(--inc); }
-.s-pass .headline > span, .s-fail .headline > span, .s-inconclusive .headline > span { color: var(--text); }
-.lede { margin: 12px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--text-2); max-width: 62ch; }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
-@media (max-width: 760px) { .headline { font-size: 24px; } .headline.xl { font-size: 28px; } }
-.sec-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 14px; }
-.sec-head .sec-t { min-width: 0; }
-.sec-head .sec-t p { margin: 2px 0 0; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 24px 64px; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); padding: 20px; min-width: 0; }
+.head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-height: 32px; }
+.head .lead { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.head .lead h2.mono { font-size: 18px; }
+.title-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.title-row > span:first-child .ic { width: 24px; height: 24px; }
+.title-row .live-dot { width: 10px; height: 10px; margin: 0 7px; }
+.head .title-row { margin-top: 0; }
+.lede { color: var(--text-2); font-size: 15px; }
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
+.facts-line { margin-top: 16px; font-size: 12px; color: var(--text-3); }
+.field-k { font-size: 12px; color: var(--text-3); margin: 20px 0 8px; }
+.empty-note { display: flex; gap: 12px; align-items: flex-start; color: var(--text-2); padding: 12px 0; }
+.empty-note .ic { color: var(--text-3); margin-top: 2px; }
+.empty-note p { margin: 4px 0 0; }
+.empty-note b { font-weight: 500; }
 
 /* ============ controls ============ */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 16px;
-  border-radius: var(--r-md); border: 1px solid var(--line-2);
-  background: var(--surface-3); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  box-shadow: var(--glass-shine);
-  color: var(--cyan-2); font: 600 12px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; cursor: pointer; user-select: none;
-  transition: background var(--t-2) var(--ease), border-color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease), transform var(--t-1) var(--ease);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 32px; padding: 0 12px;
+  border-radius: var(--r-btn); border: 1px solid var(--line-2); background: transparent; color: var(--text);
+  font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; text-decoration: none; user-select: none;
+  transition: background-color var(--t) var(--ease), border-color var(--t) var(--ease), color var(--t) var(--ease);
 }
-.btn:hover:not(:disabled) {
-  background: rgba(65, 68, 74, 0.90); border-color: var(--cyan-line);
-  box-shadow: var(--glass-shine), 0 0 16px rgba(0, 241, 253, 0.20);
-}
-.btn:active:not(:disabled) { transform: translateY(1px); }
-.btn .ic { width: 15px; height: 15px; margin-left: -2px; }
-.btn.primary {
-  background: var(--brand); color: #40000f; border-color: var(--brand-2); font-weight: 700;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 20px rgba(255, 80, 112, 0.38);
-}
-.btn.primary:hover:not(:disabled) {
-  background: #ff6884; border-color: #ffdadc;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 26px rgba(255, 80, 112, 0.52);
-}
-.btn.ghost { background: var(--surface-1); border-color: var(--line); color: var(--text-2); box-shadow: none; }
-.btn.ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line-2); color: var(--hi); }
-.btn.lg { height: 44px; padding: 0 20px; font-size: 12.5px; }
-.btn:disabled { opacity: 0.42; cursor: not-allowed; }
-@media (pointer: coarse) { .btn { height: 44px; } }
-.linkish { background: none; border: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
-.icon-btn {
-  width: 26px; height: 26px; display: inline-grid; place-items: center; flex: none; padding: 0;
-  border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--text-3); cursor: pointer;
-  transition: background-color var(--t-2) var(--ease), color var(--t-2) var(--ease), opacity var(--t-2) var(--ease);
-}
+.btn:hover:not(:disabled) { background: var(--line); }
+.btn.primary { background: var(--text); color: var(--page); border-color: transparent; }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 86%, var(--page)); }
+.btn.ghost { border-color: transparent; color: var(--text-2); }
+.btn.ghost:hover:not(:disabled) { color: var(--text); }
+.btn.lg { height: 36px; padding: 0 16px; font-size: 14px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+kbd { font-size: 11px; line-height: 16px; padding: 0 4px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--text-3); }
+.icon-btn { width: 24px; height: 24px; display: inline-grid; place-items: center; flex: none; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+.icon-btn:hover { background: var(--line); color: var(--text); }
 .icon-btn .ic { width: 14px; height: 14px; }
-.icon-btn:hover { background: var(--surface-3); color: var(--hi); border-color: var(--line-2); }
 .icon-btn.done { color: var(--pass); }
-@media (pointer: coarse) { .icon-btn { width: 40px; height: 40px; } }
-kbd {
-  display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 5px; margin-left: 2px;
-  border-radius: 4px; border: 1px solid var(--line-2); border-bottom-width: 2px; background: var(--surface-2);
-  font-size: 10.5px; color: var(--text-2);
-}
-.field { display: grid; gap: 7px; min-width: 0; }
-.field label { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
-.field select {
-  appearance: none; -webkit-appearance: none; width: 100%; height: 46px; padding: 0 38px 0 14px;
-  border-radius: var(--r-md); border: 1px solid var(--line-2); color: var(--hi); cursor: pointer; text-overflow: ellipsis;
-  background: var(--surface-0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2358a6ff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  box-shadow: var(--glass-shine);
-  font: 13px var(--mono);
-  transition: border-color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease);
-}
-.field select:hover { border-color: var(--line-3); }
-.field select.warn { border-color: var(--brand-line); }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; cursor: pointer; }
 
-/* ============ badges, tags, chips ============ */
-.v-PASS { --c: var(--pass); --c-bg: var(--pass-bg); --c-line: var(--pass-line); }
-.v-EXPECTED_INVALIDATION { --c: var(--inv); --c-bg: var(--inv-bg); --c-line: var(--inv-line); }
-.v-STALE_KEPT, .v-WRONGLY_EVICTED, .v-ASSERTION_MISMATCH, .v-FAIL { --c: var(--fail); --c-bg: var(--fail-bg); --c-line: var(--fail-line); }
-.v-INCONCLUSIVE { --c: var(--inc); --c-bg: var(--inc-bg); --c-line: var(--inc-line); }
-.v-SPEC_DIVERGENCE, .t-amber { --c: var(--amber); --c-bg: var(--amber-bg); --c-line: var(--amber-line); }
-.o-interesting { --c: var(--pass); --c-bg: var(--pass-bg); --c-line: var(--pass-line); }
-.o-unresolved { --c: var(--amber); --c-bg: var(--amber-bg); --c-line: var(--amber-line); }
-.pill {
-  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 6px; flex: none;
-  font: 600 10.5px/1 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
-  color: var(--c, var(--text-2)); background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-2));
-}
-.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.tag {
-  display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; white-space: nowrap;
-  font: 500 11.5px/1 var(--sans); color: var(--c, var(--text-2)); background: var(--c-bg, var(--surface-3)); border: 1px solid var(--c-line, var(--line-2));
-}
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface-0); font: 12px var(--mono); color: var(--text-2); }
-.chip.removed::before { content: "\2212"; margin-right: 6px; color: var(--fail); }
-.mchip {
-  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--surface-0); font-size: 12px; max-width: 100%;
-}
-.mchip.has-copy { padding-right: 3px; }
-.mchip .k { color: var(--text-3); }
-.mchip .mono { color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mchip .icon-btn { width: 22px; height: 22px; border-radius: 999px; }
-.meta-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-btn); border: 1px solid var(--line); }
+.seg button { height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"], .seg button[aria-checked="true"] { background: var(--raised); color: var(--text); }
+.seg .count { color: var(--text-3); }
+.seg.lg { display: flex; }
+.seg.lg button { flex: 1; height: 32px; font: 13px var(--mono); }
+.seg.lg button.inj .ic { width: 14px; height: 14px; color: var(--warn); }
 
-/* ============ banners ============ */
-.banner {
-  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; margin: 14px 0; border-radius: var(--r-md);
-  border: 1px solid; font-size: 13.5px; font-weight: 500; line-height: 1.45;
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-.banner > .ic { margin-top: 2px; }
-.banner > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.banner.amber { color: #ffd4b0; background: var(--brand-bg); border-color: var(--brand-line); align-items: center; }
-.banner.grey { color: var(--text-2); background: var(--inc-bg); border-color: var(--inc-line); }
-.banner.red { color: #ffc0c4; background: var(--fail-bg); border-color: var(--fail-line); }
-.banner.blue { color: #c4e2ff; background: var(--inv-bg); border-color: var(--inv-line); }
+.choices { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-btn); overflow: hidden; }
+.choice { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--line); cursor: pointer; font: 13px var(--mono); transition: background-color var(--t) var(--ease); }
+.choice:first-child { border-top: 0; }
+.choice:hover { background: var(--line); }
+.choice input { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0; border-radius: 50%; border: 1.5px solid var(--text-3); display: grid; place-items: center; flex: none; cursor: pointer; }
+.choice input:checked { border-color: var(--accent); }
+.choice input:checked::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.choice:has(input:checked) { background: var(--tint-accent); }
+
+/* ============ status, tags, banners ============ */
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.st.s-pass .ic { color: var(--pass); }
+.st.s-fail .ic { color: var(--fail); }
+.st.s-inc .ic { color: var(--text-3); }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: var(--r-tag); border: 1px solid var(--line-2); color: var(--text-2); white-space: nowrap; font-family: var(--sans); }
+.tag .ic { width: 14px; height: 14px; }
+.tag.t-warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.banner { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 8px 12px; border-radius: var(--r-btn); border: 1px solid var(--line); font-size: 13px; color: var(--text-2); }
+.banner > .ic { margin-top: 2px; color: var(--text-3); }
+.banner > div { flex: 1; min-width: 0; }
+.banner.red { border-color: color-mix(in srgb, var(--fail) 35%, transparent); color: var(--text); }
+.banner.red > .ic { color: var(--fail); }
+.banner.amber { border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.banner.amber > .ic { color: var(--warn); }
+.banner.blue > .ic { color: var(--accent); }
 main > .banner { margin: 0; }
 
-/* ============ empty state ============ */
-.facts-inline { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 16px; font: 500 11.5px var(--mono); color: var(--text-2); }
-.facts-inline span { display: inline-flex; align-items: center; gap: 7px; }
-.facts-inline .ic { width: 14px; height: 14px; color: var(--pass); stroke-width: 2.2; }
-
-/* ============ saved results ============ */
-.results-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin: 12px 0; }
-.seg {
-  display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-0);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border: 1px solid var(--line-2); border-radius: 999px; box-shadow: var(--glass-shine);
-}
-.seg button, .tab {
-  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border: 0; border-radius: 999px;
-  background: transparent; color: var(--text-2); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  transition: background var(--t-2) var(--ease), color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease);
-}
-.seg button:hover, .tab:hover { color: var(--hi); }
-.seg button[aria-pressed="true"], .tab[aria-selected="true"] {
-  background: linear-gradient(180deg, var(--brand-2), var(--brand)); color: #070a10;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 10px rgba(255, 107, 26, 0.35);
-}
-.seg button[aria-pressed="true"] .count { color: rgba(7, 10, 16, 0.78); font-weight: 700; }
-.seg .count { font: 500 11px var(--mono); color: var(--text-3); }
-.results {
-  display: grid; border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden;
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  box-shadow: var(--glass-shine);
-}
-.result {
-  position: relative; display: grid; grid-template-columns: 70px minmax(0, 1fr) auto auto 16px; align-items: center; gap: 16px;
-  min-height: 62px; padding: 11px 16px 11px 18px; border: 0; border-top: 1px solid var(--line); background: transparent;
-  text-align: left; cursor: pointer; transition: background-color var(--t-2) var(--ease);
-}
-.result:first-child { border-top: 0; }
-.result:focus-visible { outline-offset: -2px; }
-.result::before {
-  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 2px 2px 0;
-  background: var(--row-c, var(--brand)); opacity: 0; transition: opacity var(--t-2) var(--ease);
-}
-.result:hover, .result:focus-visible { background: rgba(30, 58, 110, 0.32); }
-.result:hover::before, .result:focus-visible::before { opacity: 1; }
-.result.o-PASS { --row-c: var(--pass); }
-.result.o-FAIL { --row-c: var(--fail); }
-.result.o-INCONCLUSIVE { --row-c: var(--inc); }
-.result .kind { font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: 0.07em; color: var(--inv); }
-.result .name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-weight: 650; font-size: 14px; color: var(--hi); }
-.result .path { display: block; margin-top: 3px; font: 12px var(--mono); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.result .when { font-size: 12.5px; color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.result .chev { color: var(--text-3); display: grid; transition: transform var(--t-2) var(--ease), color var(--t-2) var(--ease); }
-.result:hover .chev { transform: translateX(2px); color: var(--brand-2); }
-@media (max-width: 640px) {
-  .result { grid-template-columns: minmax(0, 1fr) auto; }
-  .result .kind, .result .when, .result .chev { display: none; }
-}
-.empty-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: var(--r-lg); color: var(--text-2); background: var(--surface-0); }
-.empty-note b { display: block; color: var(--hi); font-weight: 600; }
-.empty-note p { margin: 0; }
-
-/* ============ ready: target sheet + composer ============ */
-.spec-grid {
-  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
-  border: 1px solid var(--line-2); border-radius: var(--r-lg); background: var(--surface-0);
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-.spec-grid > div { min-width: 0; padding: 16px 20px 16px; border-left: 1px solid var(--line); }
-.spec-grid > div:first-child { border-left: 0; }
-.spec-grid h4 { margin: 0 0 4px; }
-@media (max-width: 1080px) {
-  .spec-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .spec-grid > div:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
-  .spec-grid > div:nth-child(2) { border-left: 0; }
-}
-@media (max-width: 680px) {
-  .spec-grid { grid-template-columns: minmax(0, 1fr); }
-  .spec-grid > div, .spec-grid > div:nth-child(2) { border-left: 0; border-top: 1px solid var(--line); }
-  .spec-grid > div:first-child { border-top: 0; border-bottom: 0; }
-}
-.composer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 24px; }
-@media (max-width: 860px) { .composer { grid-template-columns: minmax(0, 1fr); } }
-.score { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 8px; }
-.bignum { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
-.tone-pass { color: var(--pass); }
-.tone-fail { color: var(--fail); }
-.tone-amber { color: var(--amber); }
-.tone-live { color: var(--live); }
-dl.kv { display: grid; grid-template-columns: minmax(84px, max-content) minmax(0, 1fr); margin: 4px 0 0; font-size: 13px; }
-dl.kv dt, dl.kv dd { margin: 0; padding: 7px 0; border-top: 1px solid var(--line); }
-dl.kv dt:first-of-type, dl.kv dt:first-of-type + dd { border-top: 0; }
-dl.kv dt { color: var(--text-3); padding-right: 18px; }
-dl.kv dd { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; }
-dl.kv dd .v { min-width: 0; overflow-wrap: anywhere; }
-dl.kv dd .icon-btn { margin: -4px -4px -4px 0; opacity: 0; }
-dl.kv dd:hover .icon-btn, dl.kv dd .icon-btn:focus-visible, dl.kv dd .icon-btn.done { opacity: 1; }
-@media (hover: none) { dl.kv dd .icon-btn { opacity: 1; } }
-ul.checks { list-style: none; margin: 4px 0 0; padding: 0; }
-ul.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
-ul.checks li:first-child { border-top: 0; }
-ul.checks b { display: block; font-weight: 500; font-size: 12.5px; color: var(--text); }
-ul.checks .muted { font-size: 12.5px; overflow-wrap: anywhere; }
-.ck { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px; }
-.ck .ic { width: 12px; height: 12px; stroke-width: 2.4; }
-.ck.ok { color: var(--pass); background: var(--pass-bg); }
-.ck.no { color: var(--fail); background: var(--fail-bg); }
-.ck.unk { color: var(--inc); background: var(--inc-bg); }
-
-/* ============ live work ============ */
-.live-dot { position: relative; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--live); flex: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .live-dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--live); animation: ping 1.6s var(--ease-out) var(--ph, 0ms) infinite; }
-}
-@keyframes ping { 0% { transform: scale(0.45); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
-/* a light that travels round the border of the live stage */
-@property --beam { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.st-live > .in { border-color: var(--inv-line); }
-@media (prefers-reduced-motion: no-preference) {
-  .st-live > .in::after {
-    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
-    background: conic-gradient(from var(--beam), transparent 0deg 250deg, rgba(116, 184, 255, 0.95) 330deg, transparent 360deg);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
-    animation: beam 2.8s linear var(--ph, 0ms) infinite;
-  }
-  .bar.indet i { animation: indet 1.6s var(--ease) var(--ph, 0ms) infinite; }
-}
-@keyframes beam { to { --beam: 360deg; } }
-@keyframes indet { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
-.meter { height: 4px; border-radius: 999px; background: rgba(96, 165, 250, 0.16); overflow: hidden; }
-.meter > i { display: block; height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-2), var(--brand)); transform-origin: left; transform: scaleX(var(--p, 0)); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; margin: 22px 0 0; background: var(--line-2); border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--glass-shine); }
-.stat { background: var(--surface-0); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); padding: 14px 16px 15px; display: grid; gap: 5px; align-content: start; min-width: 0; }
-.stat b { font-size: 24px; font-weight: 700; line-height: 1.15; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; color: var(--hi); }
-.stat b.mono { font: 500 15px/1.35 var(--mono); letter-spacing: 0; }
-.stat > span { color: var(--text-3); font-size: 12.5px; }
-.stat .meter { margin-top: 4px; }
-
-/* steps down, the two runs across: what each fresh run has done so far */
-/* scrollers are positioned so the absolutely placed screen-reader text inside them is clipped, not widening the page */
-.steps-wrap, .grid-wrap, .table-wrap { position: relative; }
-.steps-wrap {
-  margin-top: 16px; overflow-x: auto; border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-table.steps { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.steps th, table.steps td { padding: 9px 14px; text-align: left; vertical-align: middle; border-top: 1px solid var(--line); white-space: nowrap; }
-table.steps thead th {
-  border-top: 0; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.07em; text-transform: uppercase;
-  color: var(--text-2); background: var(--surface-2); border-bottom: 1px solid var(--line-2);
-}
-table.steps thead th .sub { font-weight: 500; color: var(--cyan-2); text-transform: none; letter-spacing: 0; }
-table.steps td.i { width: 44px; font: 600 12px var(--mono); color: var(--cyan-2); }
-table.steps tbody th { font: 600 12.5px var(--mono); color: var(--hi); }
-table.steps .act { font-size: 12px; font-family: var(--mono); color: var(--text-2); }
-table.steps tr.is-now > * { background: rgba(255, 80, 112, 0.10); }
-table.steps tr.is-now > td.i { box-shadow: inset 3px 0 0 var(--brand); color: var(--brand-2); }
-table.steps tr.judge > * { background: var(--surface-2); }
-.steps-note { display: none; margin: 16px 0 0; }
-@media (max-width: 640px) {
-  .steps-note { display: block; }
-  .steps-note + .steps-wrap { margin-top: 8px; }
-  table.steps .act, table.steps .off { display: none; }
-  table.steps th, table.steps td { padding: 8px 9px; white-space: normal; vertical-align: top; }
-  table.steps td.i { width: 30px; }
-  table.steps tbody th { min-width: 96px; font-size: 12px; }
-  .rs { align-items: flex-start; font-size: 12px; }
-  .mini { display: none; }
-}
-.rs { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.rs .g { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; }
-.rs .g .ic { width: 11px; height: 11px; stroke-width: 2.6; }
-.rs-done .g { color: #070a10; background: linear-gradient(180deg, var(--brand-2), var(--brand)); box-shadow: 0 2px 8px rgba(255, 107, 26, 0.32); }
-.rs-live { color: #ffd4b0; }
-.rs-live .g .live-dot { width: 8px; height: 8px; }
-.rs-todo { color: var(--text-3); }
-.rs-todo .g { width: 10px; height: 10px; margin: 0 4px; box-shadow: inset 0 0 0 1.5px var(--line-3); }
-.rs-skip { color: var(--text-3); }
-.rs-skip .g { color: var(--text-3); }
-.mini { display: inline-block; width: 64px; height: 4px; border-radius: 999px; background: var(--surface-3); overflow: hidden; vertical-align: middle; }
-.mini > i { display: block; height: 100%; width: 100%; background: var(--brand); transform-origin: left; transform: scaleX(var(--p, 0)); }
-
-/* shrink: frozen target, budget, and every candidate as one square */
-.strip {
-  display: flex; flex-wrap: wrap; margin: 10px 0; border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden;
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-.strip > div { flex: 1 1 auto; display: grid; gap: 4px; align-content: start; padding: 11px 16px; border-right: 1px solid var(--line); min-width: 0; }
-.strip > div:last-child { border-right: 0; }
-.strip .k { font-size: 11.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.03em; }
-.strip .val { font: 600 13px var(--mono); color: var(--hi); overflow-wrap: anywhere; }
-.strip .bad .val { color: var(--fail); }
-.strip .arrow { flex: 0 0 auto; display: grid; place-items: center; padding: 0 2px; color: var(--brand-2); }
-.budget { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 18px 0 4px; }
-@media (max-width: 640px) { .budget { grid-template-columns: minmax(0, 1fr); } }
-.budget-row { display: grid; gap: 8px; font-size: 13px; }
-.budget-row .row { gap: 6px; }
-.tape-box {
-  margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-.tape { display: flex; flex-wrap: wrap; gap: 4px; }
-.tape .t { width: 16px; height: 16px; border-radius: 4px; background: var(--c, var(--surface-3)); }
-.t-interesting { --c: var(--brand); }
-.t-boring { --c: rgba(88, 166, 255, 0.28); }
-.t-unresolved { --c: var(--amber); }
-.t-stopped { --c: var(--text-3); }
-.t-invalid { --c: transparent; box-shadow: inset 0 0 0 1.5px var(--line-3); }
-.t.cached { opacity: 0.45; }
-.t-live { --c: var(--brand-2); }
-@media (prefers-reduced-motion: no-preference) { .t-live { animation: blink 1.6s var(--ease) var(--ph, 0ms) infinite; } }
-@keyframes blink { 50% { opacity: 0.35; } }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; font-size: 12px; color: var(--text-2); }
-.legend span { display: inline-flex; align-items: center; gap: 7px; }
-.legend i { width: 11px; height: 11px; border-radius: 3px; background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-3)); }
-.legend i.dash { border-style: dashed; background: transparent; }
-.legend i.t { width: 11px; height: 11px; border: 0; background: var(--c, var(--surface-3)); }
-.now-line { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 12px 0 0; border-radius: var(--r-md); background: var(--brand-bg); border: 1px solid var(--brand-line); font: 12.5px var(--mono); color: #ffd4b0; }
-.now-line .live-dot { width: 8px; height: 8px; }
-
-/* ============ tables ============ */
-.table-wrap {
-  overflow-x: auto; border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  box-shadow: var(--glass-shine); margin: 10px 0;
-}
-table.plain { border-collapse: collapse; width: 100%; font-size: 13px; }
-table.plain th, table.plain td { padding: 9px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
-table.plain thead th {
-  border-top: 0; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.07em; text-transform: uppercase;
-  color: var(--text-2); background: var(--surface-2); border-bottom: 1px solid var(--line-2); white-space: nowrap;
-}
-table.plain tbody th { font-weight: 600; color: var(--hi); white-space: nowrap; }
-table.plain .r { text-align: right; }
-table.plain td.reason { color: var(--text-2); max-width: 56ch; }
-table.plain tr.reduced th, table.plain tr.reduced td { color: var(--brand-2); font-weight: 700; }
-table.plain .ic { color: var(--text-3); vertical-align: -3px; }
-table.bare { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-table.bare th, table.bare td { padding: 5px 0; text-align: left; border-top: 1px solid var(--line); }
-table.bare tr:first-child > * { border-top: 0; }
-table.bare th { color: var(--text-3); font-weight: 500; padding-right: 14px; white-space: nowrap; }
-table.bare td { overflow-wrap: anywhere; }
-
-/* ============ result summary ============ */
-.pass-line { display: flex; align-items: center; gap: 18px; margin: 20px 0 6px; flex-wrap: wrap; }
-.pass-line b { display: block; font-weight: 600; margin-bottom: 6px; }
-.pass-line .chips code { font-size: 11.5px; }
-.section-k { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--inv); margin: 22px 0 0; }
-ul.facts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-ul.facts li { position: relative; padding-left: 16px; color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
-ul.facts li::before { content: ""; position: absolute; left: 4px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--brand); }
-ul.facts.missing li::before { background: var(--inc); box-shadow: 0 0 0 3px var(--inc-bg); }
-.cmd {
-  display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; padding: 10px 8px 10px 14px;
-  border: 1px solid var(--line-2); border-radius: var(--r-md); background: rgba(5, 10, 20, 0.85);
-  box-shadow: var(--glass-shine);
-}
-.cmd code { flex: 1; min-width: 0; padding: 0; border: 0; background: none; font-size: 12.5px; overflow-wrap: anywhere; }
-
-/* ============ reduction ============ */
-.reduce {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 24px; align-items: center;
-  margin: 4px 0 12px; padding: 14px 18px; border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-@media (max-width: 780px) { .reduce { grid-template-columns: minmax(0, 1fr); } }
-.reduce-num { display: flex; align-items: baseline; gap: 10px; font-size: 44px; font-weight: 750; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--brand-2); }
-.reduce-num .from { color: var(--text-3); font-weight: 600; }
-.reduce-num .ic { width: 22px; height: 22px; align-self: center; color: var(--brand); stroke-width: 2.2; }
-.reduce-num .unit { font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--text-2); }
-.bars { display: grid; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 28px; align-items: center; gap: 10px; font-size: 12px; color: var(--text-2); }
-.bar-row .track-l { height: 8px; border-radius: 999px; background: rgba(96, 165, 250, 0.16); overflow: hidden; }
-.bar-row .track-l i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--inv); transform-origin: left; transform: scaleX(var(--p, 0)); }
-.bar-row.strong { color: var(--hi); font-weight: 600; }
-.bar-row.strong .track-l i { background: linear-gradient(90deg, var(--brand-2), var(--brand)); }
-.bar-row .mono { text-align: right; }
-.claim { font-weight: 650; color: var(--hi); }
-.meta-line { font: 12px var(--mono); color: var(--text-3); margin-top: 14px; overflow-wrap: anywhere; }
-
-/* ============ timeline workspace ============ */
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
-@media (max-width: 1180px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
-.tabs {
-  display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-0);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border: 1px solid var(--line-2); border-radius: 999px; box-shadow: var(--glass-shine);
-}
-.tab .d { width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--text-3)); }
-.grid-wrap {
-  overflow-x: auto; border: 1px solid var(--line-2); border-radius: var(--r-lg);
-  background: var(--surface-0); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--glass-shine);
-}
-table.timeline { border-collapse: separate; border-spacing: 0; min-width: 100%; }
-table.timeline th, table.timeline td { padding: 6px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
-table.timeline tbody tr:last-child > * { border-bottom: 0; }
-table.timeline thead th {
-  padding: 11px 8px 10px; vertical-align: bottom; white-space: nowrap; font: 600 11px/1.3 var(--mono);
-  background: var(--surface-2); border-bottom: 1px solid var(--line-2);
-}
-table.timeline thead th .mono { display: block; font-size: 11.5px; font-weight: 700; color: var(--hi); }
-table.timeline thead th .sub { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 500; color: var(--text-2); }
-table.timeline thead th.corner {
-  position: sticky; left: 0; z-index: var(--z-sticky); color: var(--text-2); padding-left: 14px;
-  border-right: 1px solid var(--line-2); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700;
-}
-table.timeline thead th.cp { box-shadow: inset 0 3px 0 var(--cyan-2); }
-table.timeline thead th.cp .sub { color: var(--cyan-2); font-weight: 600; }
-table.timeline thead th.is-sel-col .mono { color: var(--hi); }
-table.timeline thead th.is-sel-col { box-shadow: inset 0 -2px 0 var(--brand); }
-table.timeline thead th.cp.is-sel-col { box-shadow: inset 0 3px 0 var(--cyan-2), inset 0 -2px 0 var(--brand); }
-table.timeline tbody th {
-  position: sticky; left: 0; z-index: var(--z-base); padding: 0 18px 0 14px; white-space: nowrap;
-  font: 600 12px var(--mono); color: var(--hi); background: rgba(12, 14, 18, 0.94); border-right: 1px solid var(--line-2);
-  transition: color var(--t-2) var(--ease);
-}
-table.timeline tr.is-sel > th { color: var(--hi); background: linear-gradient(90deg, rgba(255, 80, 112, 0.22), rgba(12, 14, 18, 0.94) 88%); box-shadow: inset 3px 0 0 var(--brand); }
-table.timeline td { min-width: 168px; }
-table.timeline .cp { background-color: rgba(0, 241, 253, 0.045); }
-table.timeline td.is-sel-col { background-color: rgba(255, 80, 112, 0.07); }
-table.timeline th.sc, table.timeline td.sc { min-width: 136px; }
-table.timeline th.thin, table.timeline td.thin { min-width: 60px; width: 60px; }
-table.timeline th.thin .mono, table.timeline th.thin .sub { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
-table.timeline th.thin .mono { color: #d8e8ff; }
-/* the span in which a tx row has observations: a faint lane after its submission */
-table.timeline td.lane { background-image: linear-gradient(var(--line-3), var(--line-3)); background-size: 100% 1px; background-repeat: no-repeat; background-position: center; }
-.cell {
-  position: relative; width: 100%; min-height: 48px; display: grid; gap: 3px; align-content: center;
-  padding: 6px 10px 6px 14px; border-radius: 10px; text-align: left; cursor: pointer;
-  color: var(--c, var(--text-2)); background: var(--c-bg, var(--surface-2)); border: 1px solid var(--c-line, var(--line-2));
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transition: border-color var(--t-2) var(--ease), background-color var(--t-2) var(--ease), box-shadow var(--t-2) var(--ease), transform var(--t-1) var(--ease);
-}
-.cell::before { content: ""; position: absolute; left: 5px; top: 9px; bottom: 9px; width: 2.5px; border-radius: 2px; background: currentColor; opacity: 0.92; }
-.cell:hover { border-color: color-mix(in srgb, var(--c, var(--brand)) 70%, transparent); transform: translateY(-1px); }
-.cell:active { transform: scale(0.98); }
-.cell .fate { font: 600 12.5px var(--mono); color: var(--hi); white-space: nowrap; }
-.cell .meta { display: flex; align-items: baseline; gap: 6px; font-size: 11px; white-space: nowrap; overflow: hidden; }
-.cell .meta .aid { font: 700 10.5px var(--mono); letter-spacing: 0.02em; }
-.cell .meta .vl { overflow: hidden; text-overflow: ellipsis; }
-.cell.submit::before, .cell.obs::before { background: var(--inv); opacity: 1; }
-.cell.empty { border-style: dashed; background: transparent; box-shadow: none; }
-.cell.empty .fate { color: var(--text-3); }
-.cell[aria-pressed="true"] { border-color: var(--brand); box-shadow: 0 0 0 1.5px var(--brand), 0 0 18px rgba(255, 107, 26, 0.35); }
-.matrix-foot { margin: 10px 0 0; }
-
-/* ============ inspector ============ */
-.detail { position: sticky; top: calc(var(--top-h) + 16px); max-height: calc(100dvh - var(--top-h) - 32px); overflow: auto; padding: 0; overscroll-behavior: contain; }
-@media (max-width: 1180px) { .detail { position: relative; top: auto; max-height: none; } }
-.detail-head {
-  position: sticky; top: 0; z-index: var(--z-sticky); padding: 16px 20px 14px;
-  background: rgba(9, 18, 36, 0.88); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--line-2); border-radius: var(--r-xl) var(--r-xl) 0 0;
-}
-.detail-head .kicker { font-size: 12px; }
-.detail-head h3 { margin-top: 4px; font: 600 15px var(--mono); letter-spacing: 0; }
-.detail-body { padding: 6px 20px 22px; }
-.detail-empty { display: grid; place-items: center; gap: 14px; min-height: 240px; padding: 26px 24px; text-align: center; color: var(--text-2); }
-.detail-empty .ic { width: 22px; height: 22px; color: var(--text-3); }
-.detail-empty p { max-width: 30ch; margin: 0; }
-.ba { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); gap: 6px; align-items: stretch; margin: 16px 0; }
-.ba > div {
-  display: grid; gap: 3px; align-content: start; padding: 10px 12px; border-radius: var(--r-md);
-  border: 1px solid var(--line-2); background: var(--surface-0); min-width: 0;
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: var(--glass-shine);
-}
-.ba > .after { background: var(--c-bg, var(--surface-0)); border-color: var(--c-line, var(--line-2)); }
-.ba .label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.03em; }
-.ba .val { font: 600 13.5px var(--mono); color: var(--hi); overflow-wrap: anywhere; }
-.ba > .after .val { color: var(--c, var(--hi)); }
-.ba .raw { font: 11.5px var(--mono); color: var(--text-3); }
-.ba .arrow { display: grid; place-items: center; color: var(--brand-2); padding: 0; border: 0; background: none; }
-.assert-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 20px; }
-.assert-head b { font: 600 13.5px var(--mono); }
-.expect { margin: 8px 0 0; font: 12.5px var(--mono); color: var(--text-2); }
-.rule .row b { font: 600 12.5px var(--mono); }
-blockquote {
-  margin: 10px 0; padding: 12px 14px 12px 16px; border-left: 3px solid var(--brand);
-  border-radius: 0 var(--r-md) var(--r-md) 0; background: var(--surface-0);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  font-size: 13px; line-height: 1.6; color: var(--hi);
-}
-blockquote cite { display: block; margin-top: 8px; font: normal 11.5px var(--mono); color: var(--text-3); overflow-wrap: anywhere; }
-pre {
-  margin: 8px 0; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--line-2);
-  background: rgba(4, 9, 18, 0.86); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  font-size: 12px; line-height: 1.6; color: #d6e2f5; overflow: auto; max-height: 360px; tab-size: 2;
-}
-pre.log { max-height: 260px; color: #bdd0ec; }
+/* ============ disclosure, key-value, code ============ */
 details.disclose { border-top: 1px solid var(--line); margin-top: 16px; }
-details.disclose > summary {
-  display: flex; align-items: center; gap: 10px; min-height: 42px; list-style: none; cursor: pointer;
-  font-size: 13px; font-weight: 550; color: var(--text-2); transition: color var(--t-2) var(--ease);
-}
+details.disclose > summary { display: flex; align-items: center; gap: 8px; min-height: 40px; list-style: none; cursor: pointer; font-size: 13px; color: var(--text-2); transition: color var(--t) var(--ease); }
 details.disclose > summary::-webkit-details-marker { display: none; }
-details.disclose > summary::before {
-  content: ""; width: 6px; height: 6px; flex: none; margin: 0 2px 0 3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg); transition: transform var(--t-2) var(--ease);
-}
+details.disclose > summary::before { content: ""; width: 6px; height: 6px; flex: none; margin: 0 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--t) var(--ease); }
 details.disclose[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
 details.disclose > summary:hover { color: var(--text); }
-details.disclose > summary h3 { color: var(--text); }
+details.disclose > summary h3 { color: var(--text); font-size: 15px; }
 .card > details.disclose:first-child { border-top: 0; margin-top: 0; }
-.detail-body details.disclose { margin-top: 12px; }
+.card > details.disclose:last-child { margin-bottom: -8px; }
+dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 12px 0 0; font-size: 13px; }
+dl.kv dt { color: var(--text-3); }
+dl.kv dd { margin: 0; display: flex; align-items: center; gap: 4px; min-width: 0; }
+dl.kv dd .v { overflow-wrap: anywhere; }
+dl.kv .mono { font-size: 12px; }
+pre { margin: 8px 0; padding: 12px; border-radius: var(--r-btn); background: var(--well); border: 1px solid var(--line); font-size: 12px; line-height: 1.6; color: var(--text-2); overflow: auto; max-height: 360px; tab-size: 2; }
+pre.log { max-height: 280px; }
+.cmd { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 8px 12px; background: var(--well); border: 1px solid var(--line); border-radius: var(--r-btn); }
+.cmd code { background: none; padding: 0; flex: 1; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.chip { font: 12px var(--mono); line-height: 20px; padding: 0 6px; border-radius: var(--r-tag); border: 1px solid var(--line-2); color: var(--text-2); }
+.chip.removed { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
+ul.facts { margin: 8px 0; padding-left: 16px; font-size: 13px; color: var(--text-2); }
+ul.facts li { margin: 4px 0; overflow-wrap: anywhere; }
+ul.checks { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+ul.checks li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; }
+ul.checks li > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+ul.checks b { font-weight: 400; font-size: 12px; }
+.ck { color: var(--text-3); display: inline-grid; padding-top: 2px; }
+.ck.ok { color: var(--pass); }
+.ck.no { color: var(--fail); }
+.ck.unk { color: var(--warn); }
+
+/* ============ saved results ============ */
+.list { margin: 12px -20px 0; border-top: 1px solid var(--line); }
+.list-k { margin: 20px 0 0; font-size: 12px; color: var(--text-2); }
+.grow {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) auto 72px 48px 16px; gap: 12px; align-items: center; width: 100%;
+  padding: 8px 20px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; cursor: pointer;
+  transition: background-color var(--t) var(--ease);
+}
+.grow:last-child { border-bottom: 0; }
+.grow:hover { background: var(--line); }
+.grow.flat { grid-template-columns: 120px minmax(0, 1fr) 72px 48px 16px; }
+.grow .name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.grow .nm { font: 13px var(--mono); }
+.grow .path { flex-basis: 100%; font: 12px var(--mono); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grow .when, .grow .kind { font-size: 12px; color: var(--text-3); text-align: right; }
+.grow .kind { text-align: left; }
+.grow .chev { color: var(--text-3); display: inline-grid; }
+.hist { display: flex; align-items: center; gap: 4px; }
+.hist i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.hist i.h-pass { background: var(--pass); }
+.hist i.h-fail { background: var(--fail); }
+.hist i.h-inc { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.results-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 0; }
+details.disclose .list { margin-left: 0; margin-right: 0; border: 1px solid var(--line); border-radius: var(--r-btn); overflow: hidden; }
+details.disclose .grow { padding: 8px 12px; }
+
+/* ============ target ============ */
+.checkrow { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0; border-top: 1px solid var(--line); }
+.checkrows { margin-top: 16px; border-bottom: 1px solid var(--line); }
+.checkrow > span:first-child { padding-top: 2px; display: inline-grid; }
+.checkrow .ct { display: flex; flex-direction: column; }
+.checkrow .s { font: 12px var(--mono); color: var(--text-3); }
+.checkrow .n { font-size: 14px; }
+
+/* ============ running ============ */
+.clock { font: 500 20px var(--mono); color: var(--text); }
+.rails { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(96px, auto); gap: 12px 16px; align-items: center; margin-top: 20px; }
+.rail-k { font-size: 13px; color: var(--text-2); }
+.rail { position: relative; display: flex; justify-content: space-between; align-items: center; height: 16px; }
+.rail::before { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 1px; background: var(--line-2); }
+.rail i { position: relative; width: 12px; height: 12px; border-radius: 50%; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.rail i.d-done { background: var(--text-2); box-shadow: none; }
+.rail i.d-live, .rail i.d-wait { background: var(--card); box-shadow: inset 0 0 0 2px var(--accent); }
+.rail i.d-live::after, .rail i.d-wait::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); }
+.rail i.d-skip { opacity: 0.35; }
+@media (prefers-reduced-motion: no-preference) { .rail i.d-live::after, .rail i.d-wait::after { animation: breathe 1.6s var(--ease) infinite; } }
+.rail-st { font-size: 13px; text-align: right; }
+.now-box { margin-top: 20px; padding: 12px; border-radius: var(--r-btn); border: 1px solid var(--line); background: var(--well); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.meter { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--accent); border-radius: 2px; transition: width 1s linear; }
+.steps-wrap { overflow-x: auto; }
+table.steps { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.steps th, table.steps td { padding: 6px 16px 6px 0; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; font-weight: 400; }
+table.steps thead th { color: var(--text-3); font-size: 12px; }
+table.steps thead .sub { color: var(--text-3); }
+table.steps tbody th { font: 12px var(--mono); }
+table.steps td.act, table.steps td.i { color: var(--text-3); }
+table.steps td.i { width: 32px; }
+table.steps .off { opacity: 0.6; }
+table.steps tr.is-now { background: var(--tint-accent); }
+table.steps tr.judge th { font-family: var(--sans); color: var(--text-2); }
+.steps-note { margin: 4px 0 8px; }
+.rs { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.rs .g { width: 16px; display: inline-grid; place-items: center; }
+.rs-done .g, .rs-skip, .rs-todo { color: var(--text-3); }
+.rs-live { color: var(--text); }
+.mini { display: inline-block; width: 48px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; vertical-align: middle; }
+.mini i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--accent); }
+
+/* ============ shrinking ============ */
+.target-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; }
+.target-line b { font: 500 13px var(--mono); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.tile { border: 1px solid var(--line); border-radius: var(--r-btn); padding: 12px; }
+.tile b { display: block; font-size: 20px; font-weight: 500; }
+.tile span { font-size: 12px; color: var(--text-3); }
+.tape { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 16px; }
+.t { width: 12px; height: 12px; border-radius: 3px; background: var(--line-2); display: inline-block; flex: none; }
+.t-interesting { background: var(--accent); }
+.t-boring { background: var(--text-3); }
+.t-unresolved { background: var(--warn); }
+.t-invalid { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.t.cached { opacity: 0.5; }
+.t-live { background: transparent; box-shadow: inset 0 0 0 2px var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .t-live { animation: breathe 1.6s var(--ease) infinite; animation-delay: var(--ph, 0ms); } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 12px; color: var(--text-3); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.now-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); margin-top: 16px; }
+.budget { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.budget .row { margin-bottom: 6px; }
+.oc { font-size: 12px; color: var(--text-2); }
+.oc-interesting { color: var(--accent); }
+.oc-unresolved { color: var(--warn); }
+.oc-invalid, .oc-boring { color: var(--text-3); }
+
+/* ============ verdict ============ */
+.verdict { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.verdict > span:first-child .ic { width: 28px; height: 28px; }
+.verdict .word { font-size: 28px; line-height: 1.15; font-weight: 500; letter-spacing: -0.01em; }
+.verdict .of { margin-left: auto; color: var(--text-2); font-size: 13px; }
+.sentence { font-size: 15px; line-height: 1.55; margin: 12px 0 0; }
+.asserts { margin-top: 16px; border-top: 1px solid var(--line); }
+.as { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.as > span:first-child { padding-top: 2px; display: inline-grid; }
+.as .hd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 13px; }
+.as .id { font: 500 12px var(--mono); }
+.as .kind { color: var(--text-2); }
+.as .where { margin-left: auto; font: 12px var(--mono); color: var(--text-3); }
+.as dl { grid-column: 2; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 2px 8px; margin: 4px 0 0; font-size: 12px; }
+.as dt { color: var(--text-3); }
+.as dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.as dd.obs { color: var(--fail); }
+.runs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.run { border: 1px solid var(--line); border-radius: var(--r-btn); padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+.run .rt { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-3); }
+.agree { font-size: 12px; color: var(--text-2); margin: 8px 0 0; }
+.reduce-num { display: flex; align-items: baseline; gap: 12px; margin-top: 16px; font-size: 28px; font-weight: 500; }
+.reduce-num .from { color: var(--text-3); }
+.reduce-num .ic { width: 20px; height: 20px; color: var(--text-3); align-self: center; }
+.reduce-num .unit { font-size: 14px; font-weight: 400; color: var(--text-3); }
+.claim { color: var(--text-2); }
+.meta-line { font-size: 12px; color: var(--text-3); }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table.plain { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.plain th, table.plain td { padding: 8px 16px 8px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-weight: 400; }
+table.plain thead th { color: var(--text-3); font-size: 12px; }
+table.plain .r { text-align: right; }
+table.plain tr.reduced td { color: var(--text); }
+table.plain tr.original td { color: var(--text-3); }
+table.plain td.reason { color: var(--text-2); max-width: 520px; white-space: normal; }
+table.bare { font: 12px var(--mono); border-collapse: collapse; margin: 8px 0; }
+table.bare th { text-align: left; color: var(--text-3); font-weight: 400; padding: 2px 16px 2px 0; }
+
+/* ============ two runs, step by step (trace-viewer matrix) ============ */
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.tabs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--r-btn); }
+.tab { height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { background: var(--raised); color: var(--text); }
+.tab .d { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.d.v-PASS { background: var(--pass); }
+.d.v-FAIL { background: var(--fail); }
+.d.v-INCONCLUSIVE { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.workspace .legend { margin: 16px 0 12px; }
+.workspace .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; border: 1px solid var(--line-2); }
+.workspace .legend i.v-PASS, .workspace .legend i.v-EXPECTED_INVALIDATION { border-color: color-mix(in srgb, var(--pass) 60%, transparent); }
+.workspace .legend i.v-FAIL { border-color: color-mix(in srgb, var(--fail) 70%, transparent); background: var(--tint-fail); }
+.workspace .legend i.v-INCONCLUSIVE, .workspace .legend i.dash { border-style: dashed; }
+.grid-wrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px 4px; }
+table.timeline { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+table.timeline th, table.timeline td { padding: 4px; vertical-align: middle; font-weight: 400; }
+table.timeline thead th { text-align: left; vertical-align: bottom; white-space: nowrap; padding: 0 8px 8px 4px; border-bottom: 1px solid var(--line); color: var(--text-2); }
+table.timeline thead th .mono { display: block; font-size: 12px; color: var(--text); }
+table.timeline thead th .sub { display: block; font-size: 12px; color: var(--text-3); }
+table.timeline thead th.thin { max-width: 48px; overflow: hidden; text-overflow: ellipsis; }
+table.timeline thead th.thin .sub { display: none; }
+table.timeline thead th.thin .mono { color: var(--text-3); }
+table.timeline thead th.is-sel-col .mono { color: var(--accent); }
+table.timeline th.corner { color: var(--text-3); position: sticky; left: 0; background: var(--card); z-index: 2; }
+table.timeline tbody th { position: sticky; left: 0; z-index: 1; background: var(--card); text-align: left; font: 12px var(--mono); padding: 4px 16px 4px 0; white-space: nowrap; }
+table.timeline tr.is-sel th { color: var(--accent); }
+table.timeline tbody th, table.timeline th.corner { box-shadow: -20px 0 0 var(--card); }
+.cell .meta { white-space: nowrap; }
+table.timeline td.lane { background: linear-gradient(var(--line-2), var(--line-2)) center / 100% 1px no-repeat; }
+table.timeline tbody tr:first-child td, table.timeline tbody tr:first-child th { padding-top: 12px; }
+.cell {
+  display: flex; flex-direction: column; gap: 2px; min-width: 112px; padding: 6px 8px; border-radius: var(--r-btn);
+  border: 1px solid var(--line); background: var(--page); color: var(--text); text-align: left; cursor: pointer; font: 12px var(--mono);
+  transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
+}
+.cell:hover { border-color: var(--line-2); }
+.cell .meta { display: flex; gap: 6px; font-family: var(--sans); color: var(--text-3); }
+.cell .aid { font-family: var(--mono); color: var(--text-2); }
+.cell.submit .fate { color: var(--text-2); }
+.cell.v-PASS, .cell.v-EXPECTED_INVALIDATION { border-color: color-mix(in srgb, var(--pass) 40%, transparent); }
+.cell.v-PASS .aid, .cell.v-EXPECTED_INVALIDATION .aid { color: var(--pass); }
+.cell.v-STALE_KEPT, .cell.v-WRONGLY_EVICTED, .cell.v-ASSERTION_MISMATCH { border-color: color-mix(in srgb, var(--fail) 55%, transparent); background: var(--tint-fail); }
+.cell.v-STALE_KEPT .aid, .cell.v-WRONGLY_EVICTED .aid, .cell.v-ASSERTION_MISMATCH .aid { color: var(--fail); }
+.cell.v-INCONCLUSIVE { border-style: dashed; }
+.cell.empty { background: transparent; border-style: dashed; color: var(--text-3); }
+.cell[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.matrix-foot { margin: 12px 0 0; }
+.detail { position: sticky; top: 112px; max-height: calc(100dvh - 128px); overflow: auto; }
+.detail-head .kicker { display: flex; gap: 6px; font-size: 12px; color: var(--text-3); }
+.detail-head h3 { font: 500 14px var(--mono); margin-top: 4px; }
+.detail-empty { display: flex; gap: 8px; align-items: flex-start; color: var(--text-3); font-size: 13px; }
+.detail-empty p { margin: 0; }
+.detail-body { font-size: 13px; }
+.ba { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; margin: 16px 0; }
+.ba > div { border: 1px solid var(--line); border-radius: var(--r-btn); padding: 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ba .label { font-size: 12px; color: var(--text-3); }
+.ba .val { font: 13px var(--mono); }
+.ba .raw { font: 12px var(--mono); color: var(--text-3); }
+.ba .arrow { color: var(--text-3); display: inline-grid; }
+.ba .after.v-STALE_KEPT, .ba .after.v-WRONGLY_EVICTED, .ba .after.v-ASSERTION_MISMATCH { border-color: color-mix(in srgb, var(--fail) 55%, transparent); background: var(--tint-fail); }
+.ba .after.v-STALE_KEPT .val, .ba .after.v-WRONGLY_EVICTED .val, .ba .after.v-ASSERTION_MISMATCH .val { color: var(--fail); }
+.ba .after.v-PASS .val, .ba .after.v-EXPECTED_INVALIDATION .val { color: var(--pass); }
+.assert-head { display: flex; align-items: center; gap: 8px; }
+.assert-head b { font: 500 13px var(--mono); }
+.expect { font: 12px var(--mono); color: var(--text-2); }
+.rule .row b { font: 500 12px var(--mono); }
+.rule blockquote { margin: 8px 0; padding: 4px 12px; border-left: 2px solid var(--line-2); color: var(--text-2); font-size: 13px; }
+.rule cite { display: block; margin-top: 4px; font: normal 12px var(--mono); color: var(--text-3); overflow-wrap: anywhere; }
 
 /* ============ entrance: only when the view changes, never on a poll re-render ============ */
 @media (prefers-reduced-motion: no-preference) {
-  main.enter > *:not(.track-wrap) { animation: rise var(--t-3) var(--ease-out) both; }
-  main.enter > *:nth-child(3) { animation-delay: 40ms; }
-  main.enter > *:nth-child(n+4) { animation-delay: 80ms; }
+  main.enter > * { animation: rise 200ms var(--ease) both; }
+  main.enter > *:nth-child(2) { animation-delay: 40ms; }
+  main.enter > *:nth-child(n+3) { animation-delay: 80ms; }
 }
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ============ narrow screens ============ */
+@media (max-width: 1040px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .detail { position: static; max-height: none; }
+}
+@media (max-width: 880px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .sum-now { display: none; }
+}
+@media (max-width: 640px) {
+  .top-inner, .track { padding: 0 16px; }
+  main { padding: 16px 16px 48px; }
+  .ctx, .conn { display: none; }
+  .card { padding: 16px; }
+  .list { margin-left: -16px; margin-right: -16px; }
+  .grow, .grow.flat { grid-template-columns: 112px minmax(0, 1fr) 16px; padding: 8px 16px; }
+  .grow .hist, .grow .when, .grow .kind { display: none; }
+  .tiles, .budget { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rails { grid-template-columns: 48px minmax(0, 1fr); }
+  .rail-st { grid-column: 2; text-align: left; margin-top: -8px; }
+  .verdict .word { font-size: 24px; }
+  .grid-wrap { margin: 0 -16px; padding: 0 16px 4px; }
+  table.timeline tbody th, table.timeline th.corner { box-shadow: -16px 0 0 var(--card); }
+}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="top-inner">
     <div class="brand">
-      <span class="mark" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M10 9.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg></span>
+      <svg class="ic mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h3M10 7h11M3 17h10M17 17h4"/><circle cx="8" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
       <span class="brand-name">FrameLab</span>
-      <span class="brand-sub">release check for alt-mempool nodes · local only</span>
+      <span class="ctx" id="ctx"></span>
     </div>
-    <div class="state-ind"><span class="state-k" aria-hidden="true">State</span><ol class="states" id="states" aria-label="Workbench state"></ol></div>
+    <span class="spacer"></span>
+    <details class="states-pop" id="states"></details>
     <div class="conn" id="conn"></div>
   </div>
+  <nav class="track-wrap" id="track" aria-label="Process"></nav>
 </header>
 <main id="app"></main>
 <script>
@@ -788,7 +520,7 @@ const STATES = [
   ["fail", "Fail"], ["shrinking", "Shrinking"], ["inconclusive", "Inconclusive"], ["divergence", "Spec divergence"],
 ];
 const MISMATCH = ["STALE_KEPT", "WRONGLY_EVICTED", "ASSERTION_MISMATCH"];
-const OPEN_BY_DEFAULT = new Set(["run-log", "shrink-log", "env-log"]);
+const OPEN_BY_DEFAULT = new Set(["env-log"]);
 const ui = { mode: "server", server: null, view: null, run: 1, sel: null, showRaw: false, error: null, notice: null, watching: null, pending: null, open: {}, lastSig: "", filter: "all", lastKey: "", lastEnv: null };
 
 // ---------- DOM helper: every piece of evidence goes in as text, never as HTML ----------
@@ -829,6 +561,11 @@ const ICONS = {
   down: ["M12 5v14", "M6.5 13.5 12 19l5.5-5.5"],
   dash: ["M7 12h10"],
   pointer: ["M6 4.5l12 6.2-5.3 1.6L10.9 18z"],
+  circle: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z"],
+  checkCircle: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z", "M8.6 12.2l2.3 2.3 4.6-4.8"],
+  xCircle: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z", "M14.8 9.2l-5.6 5.6", "M9.2 9.2l5.6 5.6"],
+  clock: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z", "M12 7.5V12l3 2"],
+  flask: ["M14 2.5v5.8a2 2 0 0 0 .25.96l5.4 9.9a1.6 1.6 0 0 1-1.4 2.34H5.75a1.6 1.6 0 0 1-1.4-2.34l5.4-9.9A2 2 0 0 0 10 8.3V2.5", "M8.5 2.5h7", "M6.6 15h10.8"],
 };
 function icon(name) {
   const s = document.createElementNS(SVGNS, "svg");
@@ -843,7 +580,12 @@ const wsecs = (ms) => `${Math.max(0, Math.floor(ms / 1000))} s`;
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const label = (v) => String(v).replace(/_/g, " ");
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-const pill = (v, size) => h("span", { class: `pill v-${v}${size ? ` ${size}` : ""}` }, label(v));
+const VERDICT_WORD = { PASS: "Passed", FAIL: "Failed", INCONCLUSIVE: "Inconclusive", STALE_KEPT: "Stale kept", WRONGLY_EVICTED: "Wrongly evicted", ASSERTION_MISMATCH: "Mismatch", EXPECTED_INVALIDATION: "Expected invalidation" };
+const word = (v) => VERDICT_WORD[v] || label(v);
+const toneOf = (v) => (v === "PASS" || v === "EXPECTED_INVALIDATION" ? "pass" : v === "FAIL" || MISMATCH.includes(v) ? "fail" : "inc");
+const TONE_ICON = { pass: "checkCircle", fail: "xCircle", inc: "circle" };
+/** Status as an icon and a plain word; the raw verdict stays in the tooltip. */
+const pill = (v) => h("span", { class: `st s-${toneOf(v)}`, title: v }, icon(TONE_ICON[toneOf(v)]), h("span", null, word(v)));
 const jsonl = (t) => (t || "").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const pretty = (x) => JSON.stringify(x, null, 2);
 const iso = (ms) => `${new Date(ms).toISOString().replace("T", " ").slice(0, 19)} UTC`;
@@ -879,20 +621,16 @@ function copyBtn(text, what) {
 function kv(term, value, opts = {}) {
   return [h("dt", null, term), h("dd", null, h("span", { class: `v${opts.mono ? " mono" : ""}`, title: opts.title || null }, value), opts.copy ? copyBtn(opts.copy, term) : null)];
 }
-function metaChip(k, value, copy) {
-  return h("span", { class: `mchip${copy ? " has-copy" : ""}` }, h("span", { class: "k" }, k), h("span", { class: "mono", title: copy || null }, value), copy ? copyBtn(copy, k) : null);
+const tag = (text, kind, ic) => h("span", { class: `tag${kind ? ` t-${kind}` : ""}` }, ic ? icon(ic) : null, text);
+const injectedTag = (patch) => h("span", { class: "tag t-warn", title: patch ? `Built with ${patch} on purpose` : null }, icon("flask"), "Local injected regression, not an upstream bug");
+function cardHead(title, ...right) {
+  return h("div", { class: "head" }, typeof title === "string" ? h("h3", null, title) : title, h("span", { class: "spacer" }), ...right);
 }
-const stat = (value, text, tone, attrs, extra) => h("div", { class: "stat" }, h("b", { ...(attrs || {}), class: [attrs?.class, tone ? `tone-${tone}` : null].filter(Boolean).join(" ") || null }, value), h("span", null, text), extra || null);
-/** Stage number, stage name, then any context: the heading of every card that belongs to a stage. */
-const sn = (n) => h("span", { class: "sn", "aria-hidden": "true" }, n);
-function kicker(n, name, ...rest) {
-  return h("div", { class: "kicker" }, sn(n), h("span", { class: "kname" }, h("span", { class: "sr-only" }, `Stage ${n}: `), name),
-    rest.flat().filter(Boolean).map((x) => [h("span", { class: "sep", "aria-hidden": "true" }, "/"), x]));
-}
-function secHead(n, title, sub, ...right) {
-  return h("div", { class: "sec-head" }, sn(n), h("div", { class: "sec-t" }, h("h3", null, h("span", { class: "sr-only" }, `Stage ${n}: `), title), sub ? h("p", { class: "faint small" }, sub) : null), h("span", { class: "spacer" }), ...right);
-}
-const headline = (lead, rest, xl) => h("h2", { class: `headline${xl ? " xl" : ""}` }, h("b", null, lead), " ", h("span", null, rest));
+const titleRow = (tone, ic, text) => h("div", { class: "title-row" }, h("span", { class: `tone-${tone}` }, ic === "live" ? liveDot() : icon(ic)), h("h2", null, text));
+const checkRow = (ok, title, sub, n) => h("div", { class: "checkrow" },
+  h("span", { class: `tone-${ok ? "pass" : "fail"}` }, icon(ok ? "check" : "x")),
+  h("span", { class: "ct" }, title, h("span", { class: "s" }, sub)),
+  h("span", { class: "n" }, n, h("span", { class: "faint small" }, ok ? " ok" : " mismatch")));
 
 // ---------- server API ----------
 async function api(method, url, body) {
@@ -1009,18 +747,44 @@ function currentState() {
   if (s?.env?.status === "ready") return "ready";
   return "empty";
 }
-function renderStates(state) {
-  const ol = document.getElementById("states");
-  ol.replaceChildren(...STATES.map(([id, name]) =>
-    h("li", { "aria-current": id === state ? "step" : null, class: id === "divergence" ? "unbuilt" : null, "data-s": id, title: id === "divergence" ? "Spec divergence: not built (needs a second compatible rule pack, SHOULD)" : name },
-      h("span", { class: "tick", "aria-hidden": "true" }), h("span", { class: "nm" }, name, id === "divergence" ? " (not built)" : ""))));
+function renderTop(state) {
+  const s = ui.server, env = s?.env, job = s?.job;
+  let tone = "inc", ic = "circle", text = "No target";
+  if (ui.mode === "file") { ic = "folder"; text = "Read only"; }
+  else if (state === "empty") {
+    if (env?.status === "starting" || ui.pending === "env") { tone = "accent"; ic = "live"; text = "Starting"; }
+    else if (env?.status === "stopped" && env.exit_code !== 0) { tone = "fail"; ic = "xCircle"; text = "Network stopped"; }
+  } else if (state === "ready") { tone = "pass"; ic = "checkCircle"; text = "Ready"; }
+  else if (state === "running") { tone = "accent"; ic = "live"; text = job.kind === "shrink" ? "Confirming the failure" : `Running · run ${runProgress(job.progress).runNo}/2`; }
+  else if (state === "shrinking") { tone = "accent"; ic = "live"; text = "Shrinking"; }
+  else { const o = ui.view.verdicts.overall; tone = toneOf(o); ic = TONE_ICON[tone]; text = word(o); }
+  // The eight states of spec §7, behind the status: only the current one is shown in the bar.
+  const pop = document.getElementById("states");
+  const key = `${tone}|${ic}|${text}|${state}`;
+  if (pop.dataset.k !== key) {
+    pop.dataset.k = key;
+    pop.replaceChildren(
+      h("summary", { class: `status tone-${tone}`, "aria-label": `State: ${text}. Show all eight states` }, ic === "live" ? liveDot() : icon(ic), h("span", null, text), icon("chevron")),
+      h("div", { class: "pop" },
+        h("p", { class: "faint small" }, "FrameLab has eight states; the page is in one at a time."),
+        h("ol", null, STATES.map(([id, name]) => h("li", { "aria-current": id === state ? "true" : null, class: id === "divergence" ? "unbuilt" : null },
+          h("span", { class: "dotk", "aria-hidden": "true" }), name,
+          id === "divergence" ? h("span", { class: "faint" }, " · not built") : null,
+          id === state ? h("span", { class: "faint" }, " · now") : null)))));
+  }
+  let ctx = "release check for alt-mempool nodes";
+  if (state === "ready" && env?.info) ctx = `chain ${env.info.pins.ethrex.chain_id} · block ${env.info.block_height}`;
+  else if ((state === "running" || state === "shrinking") && job) { const st = job.progress.find((e) => e.kind === "start"); ctx = st ? `${st.scenario} · ${st.build}` : job.label; }
+  else if (ui.view) ctx = `${ui.view.verdicts.scenario.id} · ${ui.view.verdicts.sidecar_build.label}`;
+  const c = document.getElementById("ctx");
+  if (c.textContent !== ctx) c.textContent = ctx;
   const conn = document.getElementById("conn");
-  const [cls, text, tip] = ui.mode === "file" ? ["file", "file · read only", "Opened as a file: saved bundles only, nothing is uploaded"]
+  const [cls, ctext, tip] = ui.mode === "file" ? ["file", "file · read only", "Opened as a file: saved bundles only, nothing is uploaded"]
     : ui.error ? ["lost", "server unreachable", "Lost contact with the FrameLab server"]
     : ["ok", location.host || "local", "Served from this machine; bundles open without any upload"];
-  if (conn.dataset.k !== cls + text) {
-    conn.dataset.k = cls + text; conn.className = `conn ${cls}`; conn.title = tip;
-    conn.replaceChildren(h("span", { class: "dot", "aria-hidden": "true" }), text);
+  if (conn.dataset.k !== cls + ctext) {
+    conn.dataset.k = cls + ctext; conn.className = `conn ${cls}`; conn.title = tip;
+    conn.replaceChildren(h("span", { class: "dot", "aria-hidden": "true" }), ctext);
   }
 }
 
@@ -1086,7 +850,7 @@ function stageModel(state) {
       if (ss) {
         const t = last(p, (e) => e.kind === "candidate")?.totals;
         set("runs", "done", "The original failure repeated on both runs");
-        set("verdict", "fail", `${ss.target.assertion_id} ${label(ss.target.verdict)}`);
+        set("verdict", "fail", `${ss.target.assertion_id} ${word(ss.target.verdict).toLowerCase()}`);
         set("shrink", "live", `${t?.kept ?? 0} kept · ${t?.node_tested ?? 0}/${ss.candidates_limit} node tests used`, { p: Math.min(1, (t?.node_tested ?? 0) / ss.candidates_limit) });
       } else {
         const rp = runProgress(p);
@@ -1113,10 +877,10 @@ function stageModel(state) {
     if (!m.runs.length) set("runs", "skip", f.na ? "No node was started" : "Not run");
     else if (v.cancelled) set("runs", "warn", "Cancelled before the end", toRuns);
     else if ((v.disagreements || []).length) set("runs", "warn", "The two runs disagree", toRuns);
-    else set("runs", "done", m.runs.map((r) => `run ${r.k} ${r.verdict?.overall ?? "?"}`).join(" · "), toRuns);
-    if (state === "pass") set("verdict", "pass", `PASS · ${f.reached}/${f.declared} assertions reached`, { href: "#summary" });
-    else if (state === "fail") set("verdict", "fail", f.first ? `FAIL · ${f.first.assertion_id} ${label(f.first.verdict)}` : "FAIL", { href: "#summary" });
-    else set("verdict", "inc", `INCONCLUSIVE · ${plural(f.facts.length, "missing fact")}`, { href: "#summary" });
+    else set("runs", "done", m.runs.map((r) => `run ${r.k} ${r.verdict ? word(r.verdict.overall).toLowerCase() : "no verdict"}`).join(" · "), toRuns);
+    if (state === "pass") set("verdict", "pass", `Passed · ${f.reached}/${f.declared} assertions reached`, { href: "#summary" });
+    else if (state === "fail") set("verdict", "fail", f.first ? `Failed · ${f.first.assertion_id} ${word(f.first.verdict).toLowerCase()}` : "Failed", { href: "#summary" });
+    else set("verdict", "inc", `Inconclusive · ${plural(f.facts.length, "missing fact")}`, { href: "#summary" });
     const red = m.reduction;
     if (red) set("shrink", "done", red.reduced ? `${red.original.total} → ${red.reduced.total} steps` : "No smaller case found", { href: "#stage-shrink" });
     else if (state === "pass") set("shrink", "skip", "Not needed on a pass");
@@ -1134,7 +898,7 @@ function stageModel(state) {
   return Object.values(S);
 }
 
-const GLYPH = { done: "check", pass: "check", fail: "x", inc: "question", warn: "alert", next: "arrow", open: "arrow", skip: "dash" };
+const GLYPH = { done: "check", pass: "check", fail: "x", inc: "question", warn: "alert", next: "arrow", open: "arrow", skip: "dash", todo: "circle" };
 function processTrack(state) {
   const jump = (e) => {
     const target = document.querySelector(e.currentTarget.getAttribute("href"));
@@ -1142,19 +906,16 @@ function processTrack(state) {
     e.preventDefault();
     target.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   };
-  return h("nav", { class: "track-wrap", "aria-label": "Process" }, h("ol", { class: "track" }, stageModel(state).map((s, i) => {
+  const stages = stageModel(state);
+  const cur = stages.find((s) => s.current);
+  return h("ol", { class: "track" }, stages.map((s, i) => {
     const inner = [
-      h("span", { class: "st-top" },
-        h("span", { class: "n" }, String(i + 1).padStart(2, "0")),
-        s.current ? h("span", { class: "now" }, "now") : null,
-        h("span", { class: "g", "aria-hidden": "true" }, s.status === "live" ? liveDot() : GLYPH[s.status] ? icon(GLYPH[s.status]) : null)),
-      h("span", { class: "nm" }, s.name, h("span", { class: "sr-only" }, `, ${STATUS_SR[s.status]}.`)),
-      h("span", { class: "sum" }, s.sum),
-      h("span", { class: `bar${s.p === null ? " indet" : ""}`, "aria-hidden": "true" },
-        h("i", { style: `--p:${s.p === null ? 0 : ["done", "pass", "fail", "inc", "warn"].includes(s.status) ? 1 : s.status === "live" ? s.p : 0}${s.p === null ? `;${phase(1600)}` : ""}` }))];
-    return h("li", { class: `stage st-${s.status}`, "aria-current": s.current ? "step" : null, style: s.status === "live" ? phase(2800) : null },
-      s.href ? h("a", { class: "in", href: s.href, onclick: jump }, inner) : h("div", { class: "in" }, inner));
-  })));
+      h("span", { class: "g", "aria-hidden": "true" }, s.status === "live" ? liveDot() : icon(GLYPH[s.status] || "circle")),
+      h("span", { class: "nm" }, s.name),
+      h("span", { class: "sr-only" }, `, stage ${i + 1} of 6, ${STATUS_SR[s.status]}: ${s.sum}`)];
+    return h("li", { class: `stage st-${s.status}`, "aria-current": s.current ? "step" : null, title: s.sum },
+      s.href ? h("a", { class: "in", href: s.href, onclick: jump }, inner) : h("span", { class: "in" }, inner));
+  }), cur ? h("li", { class: "sum-now", "aria-hidden": "true" }, cur.sum) : null);
 }
 
 // ---------- views ----------
@@ -1167,8 +928,20 @@ function noticeBar() {
 
 const KINDS = [["all", "All"], ["run", "Runs"], ["shrink", "Shrinks"], ["bundle", "Bundles"]];
 const RESULTS_SHOWN = 8;
-function resultsList(results) {
-  if (!results?.length) return h("div", { class: "empty-note" }, icon("folder"), h("div", null, h("b", null, "No saved results yet"), h("p", { class: "faint small" }, "Bundles appear here after Export; runs and shrinks after they finish.")));
+const isNegative = (r) => r.negative || /(^|-)neg-/.test(r.scenario);
+/** One row per scenario and build; the dots are its saved results, oldest left, newest right. */
+function groupRow(g) {
+  const r = g[0];
+  const hist = g.slice(0, 10).reverse();
+  return h("button", { class: "grow", type: "button", title: r.dir, onclick: () => openDir(r.dir), "aria-label": `Open the latest result of ${r.scenario}: ${word(r.overall)}, ${ago(r.mtime)}` },
+    pill(r.overall),
+    h("span", { class: "name" }, h("span", { class: "nm" }, r.scenario), r.injected ? tag("injected", "warn", "flask") : null, r.negative ? tag("negative-path run") : null),
+    h("span", { class: "hist", "aria-hidden": "true" }, hist.map((x) => h("i", { class: `h-${toneOf(x.overall)}`, title: `${word(x.overall)} · ${x.kind} · ${ago(x.mtime)}` }))),
+    h("span", { class: "when", title: iso(r.mtime) }, ago(r.mtime)),
+    h("span", { class: "kind" }, r.kind),
+    h("span", { class: "chev", "aria-hidden": "true" }, icon("chevron")));
+}
+function flatList(results) {
   const counts = Object.fromEntries(KINDS.map(([k]) => [k, k === "all" ? results.length : results.filter((r) => r.kind === k).length]));
   const f = counts[ui.filter] ? ui.filter : "all";
   const matching = f === "all" ? results : results.filter((r) => r.kind === f);
@@ -1179,18 +952,30 @@ function resultsList(results) {
         h("button", { type: "button", "aria-pressed": f === k ? "true" : "false", onclick: () => { ui.filter = k; render(); } }, name, h("span", { class: "count" }, counts[k])))),
       h("span", { class: "spacer" }),
       h("span", { class: "faint small" }, "Newest first, from bundles/ and .runs/")),
-    h("div", { class: "results" }, shown.map((r) =>
-      h("button", { class: `result o-${r.overall}`, onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${r.overall}` },
-        h("span", { class: "kind" }, r.kind),
-        h("span", null,
-          h("span", { class: "name" }, r.scenario, r.injected ? h("span", { class: "tag t-amber" }, "injected regression") : null, r.negative ? h("span", { class: "tag" }, "negative test") : null),
-          h("span", { class: "path" }, r.dir)),
-        h("span", { class: "when", title: iso(r.mtime) }, ago(r.mtime)),
+    h("div", { class: "list" }, shown.map((r) =>
+      h("button", { class: "grow flat", type: "button", onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${word(r.overall)}` },
         pill(r.overall),
-        h("span", { class: "chev" }, icon("chevron"))))),
-    matching.length > RESULTS_SHOWN ? h("div", { class: "row", style: "margin-top:10px" },
+        h("span", { class: "name" }, h("span", { class: "nm" }, r.scenario), r.injected ? tag("injected", "warn", "flask") : null, isNegative(r) ? tag("negative test") : null, h("span", { class: "path" }, r.dir)),
+        h("span", { class: "when", title: iso(r.mtime) }, ago(r.mtime)),
+        h("span", { class: "kind" }, r.kind),
+        h("span", { class: "chev", "aria-hidden": "true" }, icon("chevron"))))),
+    matching.length > RESULTS_SHOWN ? h("div", { class: "actions" },
       h("button", { id: "results-more", class: "btn ghost", type: "button", "aria-expanded": ui.allResults ? "true" : "false", onclick: () => { ui.allResults = !ui.allResults; render(); } },
         icon(ui.allResults ? "dash" : "down"), ui.allResults ? "Show fewer" : `Show all ${matching.length}`)) : null);
+}
+function resultsList(results) {
+  if (!results?.length) return h("div", { class: "empty-note" }, icon("folder"), h("div", null, h("b", null, "No saved results yet"), h("p", { class: "faint small" }, "Bundles appear here after Export; runs and shrinks after they finish.")));
+  const groups = [], byKey = new Map();
+  for (const r of results) {
+    const k = `${r.scenario}|${r.injected}|${r.negative}`;
+    if (!byKey.has(k)) { byKey.set(k, []); groups.push(byKey.get(k)); }
+    byKey.get(k).push(r);
+  }
+  const main = groups.filter((g) => !isNegative(g[0])), neg = groups.filter((g) => isNegative(g[0]));
+  return h("div", null,
+    main.length ? h("div", { class: "list" }, main.map(groupRow)) : null,
+    neg.length ? [h("p", { class: "list-k" }, `Negative tests · ${neg.length}`, h("span", { class: "faint" }, " · these check FrameLab's own guards and are built not to pass")), h("div", { class: "list" }, neg.map(groupRow))] : null,
+    det("all-results", `Every saved result · ${results.length}`, flatList(results)));
 }
 function folderPicker(extra) {
   const id = "folder-input";
@@ -1205,22 +990,24 @@ function viewEmpty() {
   const starting = env?.status === "starting" || ui.pending === "env";
   const failed = env?.status === "stopped" && env.exit_code !== 0;
   const server = ui.mode === "server";
-  const focus = h("section", { class: "card focus" },
-    kicker("01", "Target", starting ? h("span", { class: "row tight" }, liveDot(), "Starting the local network") : server ? "No target running yet" : "Read only"),
-    headline("Release-check an alt-mempool node", "against its written policy, on a pinned local stack.", true),
-    server
-      ? h("p", { class: "lede" }, "Start the pinned stack (ethrex and the sidecar, on 127.0.0.1). Its pins, rule-pack quotes and capabilities are checked before any scenario runs.")
-      : h("p", { class: "lede" }, "This page is open without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout."),
+  const head = !server ? titleRow("inc", "folder", "Read-only page")
+    : starting ? titleRow("accent", "live", "Starting the local network")
+    : failed ? titleRow("fail", "xCircle", "The local network stopped")
+    : titleRow("inc", "circle", "No target running");
+  const lede = !server ? ["Opened without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout."]
+    : starting ? "Starting ethrex and the sidecar on 127.0.0.1. Pins, rule-pack quotes and node capabilities are checked before any scenario runs."
+    : failed ? `It exited with code ${env.exit_code}. Check that Docker is running, then start it again. The startup log is below.`
+    : "Start the pinned stack: ethrex and the sidecar, on 127.0.0.1. Its pins, rule-pack quotes and capabilities are checked before any scenario runs.";
+  const focus = h("section", { class: "card", id: "stage-target" },
+    h("span", { class: "faint small" }, "Target"),
+    head,
+    h("p", { class: "lede" }, lede),
     h("div", { class: "actions" },
-      server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, icon("power"), starting ? "Starting local network…" : "Start local network") : null,
+      server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, icon("power"), starting ? "Starting…" : "Start local network") : null,
       folderPicker("lg")),
-    failed ? banner("red", `The local network stopped (exit ${env.exit_code}). Check Docker, then try again.`) : null,
     env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log", "data-envlog": "" }, env.log.join("\n"))) : null,
-    h("div", { class: "facts-inline" },
-      h("span", null, icon("check"), "Binds to 127.0.0.1 only"),
-      h("span", null, icon("check"), "Bundles open without upload"),
-      h("span", null, icon("check"), "Two fresh stacks per run")));
-  return [focus, server ? h("section", { class: "card" }, h("div", { class: "sec-head" }, h("h3", null, "Saved results"), h("span", { class: "spacer" }), h("span", { class: "faint small" }, "Open one to see its stages")), resultsList(s?.results)) : null];
+    h("p", { class: "facts-line" }, "Binds to 127.0.0.1 only · bundles open without upload · two fresh stacks per run"));
+  return [focus, server ? h("section", { class: "card" }, cardHead("Saved results"), resultsList(s?.results)) : null];
 }
 
 function viewReady() {
@@ -1228,57 +1015,70 @@ function viewReady() {
   const info = s.env.info;
   const scenarios = s.scenarios || [];
   const builds = s.builds || [];
-  const wantScenario = ui.lastScenario || "scenarios/s1-payer-drop.yaml";
-  const wantBuild = ui.lastBuild || "observe";
-  const scenarioSel = h("select", { id: "scenario", onchange: (e) => { ui.lastScenario = e.target.value; } }, scenarios.map((f) => h("option", { value: f, selected: f === wantScenario ? true : null }, f)));
-  const injectedPick = (builds.find((b) => b.id === wantBuild)?.patches.length ?? 0) > 0;
-  const buildSel = h("select", { id: "build", class: injectedPick ? "warn" : null, onchange: (e) => { ui.lastBuild = e.target.value; render(); } }, builds.map((b) => h("option", { value: b.id, selected: b.id === wantBuild ? true : null }, b.patches.length ? `${b.label}: LOCAL INJECTED REGRESSION (${b.patches.join(", ")})` : `${b.label}: pinned sidecar + observe patch`)));
+  const want = scenarios.includes(ui.lastScenario) ? ui.lastScenario : scenarios.includes("scenarios/s1-payer-drop.yaml") ? "scenarios/s1-payer-drop.yaml" : scenarios[0];
+  ui.lastScenario = want;
+  const wantBuild = builds.some((b) => b.id === ui.lastBuild) ? ui.lastBuild : "observe";
+  const build = builds.find((b) => b.id === wantBuild);
+  const injectedPick = (build?.patches.length ?? 0) > 0;
   const rp = info.rule_pack;
   const eth = info.pins.ethrex, sc = info.pins.sidecar;
   const quotesOk = rp.quotes_verified === rp.quotes;
   const caps = Object.entries(info.capabilities);
-  return [
-    h("section", { class: "card", id: "stage-target" },
-      secHead("01", "Target checked", info.note,
-        metaChip("chain", eth.chain_id), metaChip("block", info.block_height),
-        h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, icon("stop"), "Stop network")),
-      h("div", { class: "spec-grid" },
-        h("div", null, h("h4", null, "Pins"),
-          h("dl", { class: "kv" },
-            kv("ethrex", eth.image, { mono: true }),
-            kv("image id", short(eth.image_id, 19), { mono: true, copy: eth.image_id, title: eth.image_id }),
-            kv("client", eth.client_version, { mono: true }),
-            kv("commit", eth.pinned_commit, { mono: true, copy: eth.pinned_commit }),
-            kv("genesis", `sha256 ${short(eth.genesis_sha256, 12)}, chain ${eth.chain_id}`, { mono: true, copy: eth.genesis_sha256 }),
-            kv("sidecar", `${sc.commit.slice(0, 12)} · ${sc.build_label}-${sc.build_hash.slice(0, 12)}`, { mono: true, copy: sc.commit }),
-            kv("patches", sc.patches.map((p) => p.file).join(", "), { mono: true }),
-            kv("block height", info.block_height, { mono: true }))),
-        h("div", null, h("h4", null, "Rule pack and compatibility"),
-          h("div", { class: "score" },
-            h("span", { class: `bignum ${quotesOk ? "tone-pass" : "tone-fail"}` }, `${rp.quotes_verified}/${rp.quotes}`),
-            h("span", { class: "muted small" }, quotesOk ? "quotes found verbatim at the pinned source" : `only ${rp.quotes_verified}/${rp.quotes} quotes verified`)),
-          h("dl", { class: "kv" },
-            kv("pack", rp.id, { mono: true }),
-            kv("hash", rp.hash.slice(0, 12), { mono: true, copy: rp.hash }),
-            kv("source", rp.source_revision, { mono: true }))),
-        h("div", null, h("h4", null, `Capabilities · ${caps.filter(([, v]) => capOk(v)).length}/${caps.length} ok`),
-          h("ul", { class: "checks" }, caps.map(([k, v]) => h("li", null,
-            h("span", { class: `ck ${capOk(v) ? "ok" : "no"}`, role: "img", "aria-label": capOk(v) ? "ok" : "failed" }, icon(capOk(v) ? "check" : "x")),
-            h("span", null, h("b", { class: "mono" }, k), h("span", { class: "muted" }, capOk(v) ? String(v).replace(/^ok:\s*/, "") : v)))))))),
-    h("section", { class: "card focus", id: "stage-scenario" },
-      kicker("02", "Scenario", "next step"),
-      headline("Local network ready.", "Choose a scenario and a node build. It runs twice, each time on a fresh stack."),
-      h("div", { class: "composer" },
-        h("div", { class: "field" }, h("label", { for: "scenario" }, "Scenario"), scenarioSel),
-        h("div", { class: "field" }, h("label", { for: "build" }, "Node build"), buildSel),
-        h("button", { class: "btn primary lg", disabled: ui.pending, onclick: () => {
-          ui.lastScenario = scenarioSel.value; ui.lastBuild = buildSel.value;
-          act("run", () => api("POST", "/api/run", { scenario: scenarioSel.value, build: buildSel.value }));
-        } }, icon("play"), "Run scenario")),
-      injectedPick ? banner("amber", "LOCAL INJECTED REGRESSION: this build carries a patch on purpose. Its failures demonstrate FrameLab; they are not upstream bugs.") : null,
-      h("p", { class: "faint small" }, "Running stops this probe stack; runs 1/2 and 2/2 each start a fresh stack of their own.")),
-    h("section", { class: "card" }, det("ready-results", h("h3", null, "Open a saved result"), resultsList(s.results))),
-  ];
+  const capsOk = caps.filter(([, v]) => capOk(v)).length;
+  const ok = targetOk(info);
+  const base = scenarios.filter((f) => !f.startsWith("scenarios/negative/"));
+  const neg = scenarios.filter((f) => f.startsWith("scenarios/negative/"));
+  if (neg.includes(want) && !("neg-scenarios" in ui.open)) ui.open["neg-scenarios"] = true;
+  const choice = (f) => {
+    const name = f.split("/").pop().replace(/\.yaml$/, "");
+    return h("label", { class: "choice" }, h("input", { type: "radio", name: "scenario", value: f, "aria-label": name, checked: f === want ? true : null, onchange: () => { ui.lastScenario = f; } }), h("span", null, name));
+  };
+  const target = h("section", { class: "card", id: "stage-target" },
+    cardHead("Target", h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, icon("stop"), "Stop network")),
+    titleRow(ok ? "pass" : "fail", ok ? "checkCircle" : "xCircle", ok ? "Ready" : "Not ready"),
+    info.note ? h("p", { class: "faint small" }, info.note) : null,
+    h("div", { class: "checkrows" },
+      checkRow(quotesOk, "Rule-pack quotes", rp.id, `${rp.quotes_verified}/${rp.quotes}`),
+      checkRow(capsOk === caps.length, "Node capabilities", clientShort(eth.client_version), `${capsOk}/${caps.length}`)),
+    h("dl", { class: "kv" },
+      kv("ethrex", eth.client_version, { mono: true }),
+      kv("commit", short(eth.pinned_commit, 12), { mono: true, copy: eth.pinned_commit, title: eth.pinned_commit }),
+      kv("sidecar", `${sc.commit.slice(0, 12)} · ${sc.build_label}-${sc.build_hash.slice(0, 12)}`, { mono: true, copy: sc.commit }),
+      kv("chain", `${eth.chain_id} · block ${info.block_height}`, { mono: true })),
+    det("target-details", "All pins, capabilities and the rule pack",
+      h("dl", { class: "kv" },
+        kv("image", eth.image, { mono: true }),
+        kv("image id", short(eth.image_id, 19), { mono: true, copy: eth.image_id, title: eth.image_id }),
+        kv("genesis", `sha256 ${short(eth.genesis_sha256, 12)}`, { mono: true, copy: eth.genesis_sha256 }),
+        kv("patches", sc.patches.map((p) => p.file).join(", ") || "none", { mono: true })),
+      h("h4", null, `Capabilities · ${capsOk}/${caps.length} ok`),
+      h("ul", { class: "checks" }, caps.map(([k, v]) => h("li", null,
+        h("span", { class: `ck ${capOk(v) ? "ok" : "no"}`, role: "img", "aria-label": capOk(v) ? "ok" : "failed" }, icon(capOk(v) ? "check" : "x")),
+        h("span", null, h("b", { class: "mono" }, k), h("span", { class: "muted" }, capOk(v) ? String(v).replace(/^ok:\s*/, "") : v))))),
+      h("h4", null, "Rule pack and compatibility"),
+      h("dl", { class: "kv" },
+        kv("pack", rp.id, { mono: true }),
+        kv("hash", rp.hash.slice(0, 12), { mono: true, copy: rp.hash }),
+        kv("source", rp.source_revision, { mono: true }),
+        kv("quotes", quotesOk ? `${rp.quotes_verified}/${rp.quotes} found verbatim at the pinned source` : `only ${rp.quotes_verified}/${rp.quotes} verified`))));
+  const scenario = h("section", { class: "card", id: "stage-scenario" },
+    cardHead("Scenario"),
+    h("p", { class: "muted" }, "Pick a scenario and a node build. It runs twice, each time on a fresh stack; a failure only counts if both runs agree."),
+    h("div", { class: "choices", role: "radiogroup", "aria-label": "Scenario" }, base.map(choice)),
+    neg.length ? det("neg-scenarios", `Negative tests · ${neg.length}`,
+      h("p", { class: "faint small" }, "These check FrameLab's own guards and are built not to pass."),
+      h("div", { class: "choices", role: "radiogroup", "aria-label": "Negative test" }, neg.map(choice))) : null,
+    h("div", { class: "field-k", id: "build-k" }, "Node build"),
+    h("div", { class: "seg lg", role: "radiogroup", "aria-labelledby": "build-k" }, builds.map((b) =>
+      h("button", { type: "button", role: "radio", "aria-checked": b.id === wantBuild ? "true" : "false", class: b.patches.length ? "inj" : null,
+        title: b.patches.length ? `Local injected regression: ${b.patches.join(", ")}` : "Pinned sidecar with the observe patch",
+        onclick: () => { ui.lastBuild = b.id; render(); } }, b.patches.length ? icon("flask") : null, b.label))),
+    injectedPick ? banner("amber", "Local injected regression: this build carries ", h("code", null, build.patches.join(", ")), " on purpose. Its failures demonstrate FrameLab; they are not upstream bugs.") : null,
+    h("div", { class: "actions" },
+      h("button", { class: "btn primary lg", disabled: ui.pending || !want, onclick: () => act("run", () => api("POST", "/api/run", { scenario: ui.lastScenario, build: wantBuild })) }, icon("play"), "Run scenario"),
+      h("span", { class: "faint small" }, "Runs twice. Stops this probe stack first; each run starts its own.")));
+  return [h("div", { class: "split" }, target, scenario),
+    h("section", { class: "card" }, det("ready-results", h("h3", null, "Open a saved result"), resultsList(s.results)))];
 }
 
 // ---- running: the steps of both runs, as they happen ----
@@ -1316,7 +1116,7 @@ function judgeCell(b) {
   return rs("todo", "");
 }
 function runHead(b, k, cls) {
-  const state = b.done ? b.done.overall : b.start ? "on the node" : "next";
+  const state = b.done ? word(b.done.overall).toLowerCase() : b.start ? "on the node" : "next";
   return h("th", { scope: "col", class: cls }, `Run ${k}/2`, h("span", { class: "sub" }, ` · ${state}`));
 }
 function stepsTable(rp, caption) {
@@ -1324,7 +1124,7 @@ function stepsTable(rp, caption) {
   const off = (k) => (k === runNo ? null : "off");
   const row = (i, id, action, cells, cls) => h("tr", { class: cls || null }, h("td", { class: "i num" }, i), h("th", { scope: "row" }, id), h("td", { class: "act" }, action), cells.map((c, j) => h("td", { class: off(j + 1) }, c)));
   const other = by[runNo === 1 ? 2 : 1];
-  const otherNote = h("p", { class: "steps-note faint small" }, `Showing run ${runNo}/2, the one on the node. Run ${runNo === 1 ? 2 : 1}/2: ${other.done ? other.done.overall : other.start ? "on the node" : "starts after this one"}.`);
+  const otherNote = h("p", { class: "steps-note faint small" }, `Showing run ${runNo}/2, the one on the node. Run ${runNo === 1 ? 2 : 1}/2: ${other.done ? word(other.done.overall).toLowerCase() : other.start ? "on the node" : "starts after this one"}.`);
   const rows = [row("·", "fresh stack", "reset", [resetCell(by[1]), resetCell(by[2])])];
   for (let i = 0; i < total; i++) {
     const s = steps[i];
@@ -1353,26 +1153,46 @@ function viewRunning() {
     : b.judging ? "All steps done; judging the assertions."
     : cur.ev.action === "advance-to-checkpoint" && cur.wait && !cur.pass ? `Step ${b.cur + 1} of ${rp.total}: waiting for the reconcile pass of block ${cur.wait.block} at ${cur.ev.step_id}.`
     : `Step ${b.cur + 1} of ${rp.total}: ${cur.ev.step_id} (${cur.ev.action}).`;
-  const [lead, rest] = cancelling ? ["Cancelling.", "It stops before the next step, and the result will be INCONCLUSIVE, not green."]
-    : shrink ? ["Confirming the failure.", runStart ? `Run ${rp.runNo} of 2. ${stepText}` : stepText]
-    : runStart ? [`Run ${rp.runNo} of 2.`, stepText] : ["Starting.", stepText];
   const wait = cur?.wait && !cur.pass && !b.done ? cur.wait : null;
-  const doneSteps = rp.by[1].completed + rp.by[2].completed;
-  return [h("section", { class: "card focus" },
-    h("div", { class: "focus-top" },
-      shrink ? kicker("05", "Shrink", "step 1 of 2: confirm the failure", start ? h("span", { class: "mono" }, `node build ${start.build}`) : null)
-        : kicker("03", "Run ×2", job.label, start ? h("span", { class: "mono" }, `node build ${start.build}`) : null),
-      h("span", { class: "spacer" }),
+  const dotState = (r, i) => {
+    const s = r.steps[i];
+    if (!r.start) return "todo";
+    if (r.done) return s ? "done" : "skip";
+    if (r.cur === undefined || i > r.cur) return "todo";
+    if (i < r.cur || r.judging) return "done";
+    return s?.ev.action === "advance-to-checkpoint" && s.wait && !s.pass ? "wait" : "live";
+  };
+  const runState = (r) => r.done ? pill(r.done.overall)
+    : !r.start ? h("span", { class: "faint" }, "queued")
+    : r.cur === undefined ? h("span", { class: "tone-accent" }, "fresh stack")
+    : r.judging ? h("span", { class: "tone-accent" }, "judging")
+    : h("span", { class: "tone-accent" }, `step ${Math.min(r.cur + 1, rp.total)}/${rp.total}`);
+  const rails = h("div", { class: "rails" }, [1, 2].map((k) => {
+    const r = rp.by[k];
+    return [h("span", { class: "rail-k" }, `Run ${k}/2`),
+      rp.total ? h("div", { class: "rail", role: "img", "aria-label": `Run ${k}/2: ${r.completed} of ${rp.total} steps done` },
+        Array.from({ length: rp.total }, (_, i) => h("i", { class: `d-${dotState(r, i)}`, title: `${i + 1}. ${rp.steps[i]?.id ?? "not reached yet"}` })))
+        : h("span", { class: "faint small" }, k === 1 ? "The steps appear once run 1 reaches its first step." : ""),
+      h("span", { class: "rail-st" }, runState(r))];
+  }));
+  return [h("section", { class: "card", id: "stage-runs" },
+    cardHead(h("div", { class: "lead" },
+        h("span", { class: "faint small" }, shrink ? "Shrink · first, confirm the failure" : "Run ×2"),
+        h("h2", { class: "mono" }, start?.scenario ?? job.label),
+        start ? h("span", { class: "faint small mono" }, `node build ${start.build}`) : null),
+      h("span", { class: "clock", title: "Elapsed", "data-since": job.started }, mmss(Date.now() - job.started)),
       h("button", { class: "btn", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), cancelling ? "Cancelling…" : "Cancel")),
-    headline(lead, rest),
-    h("p", { class: "lede" }, shrink ? `Before deleting anything, the original ${job.label} has to fail the same way on two fresh stacks.` : "Each run gets its own fresh ethrex container and sidecar. A failure only counts if both runs agree."),
-    h("div", { class: "stats" },
-      stat(mmss(Date.now() - job.started), "elapsed", null, { "data-since": job.started }),
-      stat(rp.total ? `${doneSteps}/${2 * rp.total}` : "—", "steps done, both runs", null, null,
-        h("div", { class: "meter", role: "progressbar", "aria-label": "Steps done across both runs", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": Math.round(rp.frac * 100) }, h("i", { style: `--p:${rp.frac}` }))),
-      stat(wait ? cur.ev.step_id : "—", wait ? `waiting for the pass of block ${wait.block} (limit ${secs(wait.limit_ms)})` : "no checkpoint wait right now", null, { class: "mono" },
-        wait ? h("div", { class: "meter" }, h("i", { "data-meter-from": wait.at, "data-meter-len": wait.limit_ms, style: `--p:${Math.min(1, (Date.now() - wait.at) / wait.limit_ms)}` })) : null)),
-    stepsTable(rp, "Steps of the scenario, by run"),
+    h("p", { class: "muted" }, cancelling ? "Cancelling. It stops before the next step, and the result will be inconclusive, not green."
+      : shrink ? `Before deleting anything, the original ${job.label} has to fail the same way on two fresh stacks.`
+      : "Each run gets its own fresh ethrex container and sidecar. A failure only counts if both runs agree."),
+    rails,
+    h("div", { class: "now-box", role: "status" },
+      h("div", { class: "row tight" }, wait ? h("span", { class: "tone-accent", "aria-hidden": "true" }, icon("clock")) : liveDot(), h("span", null, runStart ? `Run ${rp.runNo}/2 · ` : "", stepText)),
+      wait ? [
+        h("div", { class: "row small faint" }, h("span", { class: "mono" }, cur.ev.step_id), h("span", null, `block ${wait.block}`),
+          h("span", null, h("span", { "data-secs": wait.at }, wsecs(Date.now() - wait.at)), ` of the ${secs(wait.limit_ms)} limit`)),
+        h("div", { class: "meter", "aria-hidden": "true" }, h("i", { "data-meter-from": wait.at, "data-meter-len": wait.limit_ms, style: `--p:${Math.min(1, (Date.now() - wait.at) / wait.limit_ms)}` }))] : null),
+    det("run-steps", "Every step, both runs", stepsTable(rp, "Steps of the scenario, by run")),
     det("run-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n") || "…")))];
 }
 
@@ -1394,49 +1214,42 @@ function viewShrinking() {
   const nowLine = live
     ? `On the node now: candidate ${(lc?.n ?? 0) + 1}, fresh run ${live.run}` + (liveStep ? `, step ${liveStep.index + 1}/${liveStep.total} (${liveStep.step_id})` : "") + (live.kind === "checkpoint-wait" ? `, waiting for the block ${live.block} pass` : "")
     : null;
-  const cell = (k, v, cls) => h("div", { class: cls || null }, h("span", { class: "k" }, k), h("span", { class: "val" }, v));
   const counts = Object.fromEntries(TAPE.map(([o]) => [o, cands.filter((c) => c.outcome === o).length]));
-  return [h("section", { class: "card focus" },
-    h("div", { class: "focus-top" },
-      kicker("05", "Shrink", "step 2 of 2: delete steps, keep the failure", h("span", { class: "mono" }, job.label)),
-      h("span", { class: "spacer" }),
+  const outcome = Object.fromEntries(TAPE);
+  const tile = (n, text, tone) => h("div", { class: "tile" }, h("b", { class: tone ? `tone-${tone}` : null }, n), h("span", null, text));
+  return [h("section", { class: "card", id: "stage-shrink" },
+    cardHead(titleRow("accent", "live", stopping ? "Stopping" : "Shrinking"),
+      h("span", { class: "faint small mono" }, job.label),
       h("button", { class: "btn", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), stopping ? "Stopping after this candidate…" : "Stop and keep best")),
-    stopping ? headline("Stopping.", "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported.")
-      : headline("Shrinking.", `${live ? `Candidate ${(lc?.n ?? 0) + 1} is on the node now` : `${plural(cands.length, "candidate")} checked`}; ${totals.kept} kept so far. Budget: ${totals.node_tested} of ${limitC} node tests used.`),
-    h("p", { class: "section-k" }, "Frozen target: it must keep failing exactly like this"),
-    h("div", { class: "strip" },
-      h("div", null, h("span", { class: "k" }, "assertion"), h("span", { class: "row tight" }, h("b", { class: "val" }, t.assertion_id), pill(t.verdict))),
-      cell("tx", t.tx_role), cell("rule", t.rule_ref), cell("checkpoint", t.checkpoint_id)),
-    h("div", { class: "budget" },
-      h("div", { class: "budget-row" },
-        h("div", { class: "row" }, h("span", null, "Candidates on the node"), h("span", { class: "spacer" }), h("span", { class: "mono num" }, `${totals.node_tested} of ${limitC}`), h("span", { class: "faint small" }, `· ${Math.max(0, limitC - totals.node_tested)} left`)),
-        h("div", { class: "meter" }, h("i", { style: `--p:${Math.min(1, totals.node_tested / limitC)}` }))),
-      h("div", { class: "budget-row" },
-        h("div", { class: "row" }, h("span", null, "Wall time"), h("span", { class: "spacer" }), h("span", { class: "mono num", "data-until": start.at + limitW }, mmss(limitW - used)), h("span", { class: "faint small" }, `left of ${mmss(limitW)}`)),
-        h("div", { class: "meter" }, h("i", { "data-meter-from": start.at, "data-meter-len": limitW, style: `--p:${Math.min(1, used / limitW)}` })))),
-    h("div", { class: "tape-box" },
-      h("div", { class: "row" }, h("b", { class: "small" }, `Every candidate so far · ${cands.length}`), h("span", { class: "spacer" }), h("span", { class: "faint small" }, "oldest first; hover for the reason")),
-      h("div", { class: "tape", role: "img", style: "margin-top:12px", "aria-label": `${plural(cands.length, "candidate")}: ${TAPE.map(([o, name]) => `${counts[o]} ${name}`).join(", ")}${live ? "; one on the node now" : ""}.` },
-        cands.map((c) => h("i", { class: `t t-${c.outcome}${c.cached ? " cached" : ""}`, title: `#${c.n} · ${c.phase} · ${c.outcome}${c.cached ? " (cached)" : ""}: ${c.reason}` })),
-        live ? h("i", { class: "t t-live", style: phase(1600), title: "On the node now" }) : null),
-      h("div", { class: "legend", "aria-hidden": "true" },
-        TAPE.map(([o, name]) => h("span", null, h("i", { class: `t t-${o}` }), `${name} ${counts[o]}`)),
-        h("span", null, h("i", { class: "t t-boring cached" }), `answered from cache ${totals.cached}`),
-        live ? h("span", null, h("i", { class: "t t-live" }), "on the node now") : null)),
+    h("p", { class: "muted" }, stopping ? "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported."
+      : "Deleting steps while the failure stays exactly this one, frozen:"),
+    h("p", { class: "target-line" }, h("b", null, t.assertion_id), pill(t.verdict), h("span", { class: "mono faint" }, `${t.tx_role} · ${t.rule_ref} · ${t.checkpoint_id}`)),
+    h("div", { class: "tiles" },
+      tile(totals.node_tested, `attempted on the node, of ${limitC}`),
+      tile(totals.kept, "kept: still reproduces", totals.kept ? "accent" : null),
+      tile(totals.unresolved, "unresolved: never a success", totals.unresolved ? "warn" : null),
+      tile(totals.invalid, "rejected before any node run")),
+    h("div", { class: "tape", role: "img", "aria-label": `${plural(cands.length, "candidate")}: ${TAPE.map(([o, name]) => `${counts[o]} ${name}`).join(", ")}${live ? "; one on the node now" : ""}.` },
+      cands.map((c) => h("i", { class: `t t-${c.outcome}${c.cached ? " cached" : ""}`, title: `#${c.n} · ${c.phase} · ${c.outcome}${c.cached ? " (cached)" : ""}: ${c.reason}` })),
+      live ? h("i", { class: "t t-live", style: phase(1600), title: "On the node now" }) : null),
+    h("div", { class: "legend", "aria-hidden": "true" },
+      TAPE.map(([o, name]) => h("span", null, h("i", { class: `t t-${o}` }), `${name} ${counts[o]}`)),
+      h("span", null, h("i", { class: "t t-boring cached" }), `answered from cache ${totals.cached}`),
+      live ? h("span", null, h("i", { class: "t t-live" }), "on the node now") : null),
     nowLine ? h("p", { class: "now-line", role: "status" }, liveDot(), nowLine) : null,
-    h("div", { class: "stats" },
-      stat(totals.node_tested, `attempted on the node (of ${limitC})`),
-      stat(totals.kept, "kept: still reproduces", totals.kept ? "pass" : null),
-      stat(totals.unresolved, "unresolved: never a success", totals.unresolved ? "amber" : null),
-      stat(totals.invalid, "rejected before any node run"),
-      stat(totals.cached, "cache hits")),
-    h("h4", null, "Latest candidates"),
-    cands.length ? h("div", { class: "table-wrap" }, h("table", { class: "plain" },
+    h("div", { class: "budget" },
+      h("div", null,
+        h("div", { class: "row small" }, h("span", null, "Node tests"), h("span", { class: "spacer" }), h("span", { class: "mono" }, `${totals.node_tested}/${limitC}`), h("span", { class: "faint" }, `${Math.max(0, limitC - totals.node_tested)} left`)),
+        h("div", { class: "meter" }, h("i", { style: `--p:${Math.min(1, totals.node_tested / limitC)}` }))),
+      h("div", null,
+        h("div", { class: "row small" }, h("span", null, "Wall time left"), h("span", { class: "spacer" }), h("span", { class: "mono", "data-until": start.at + limitW }, mmss(limitW - used)), h("span", { class: "faint" }, `of ${mmss(limitW)}`)),
+        h("div", { class: "meter" }, h("i", { "data-meter-from": start.at, "data-meter-len": limitW, style: `--p:${Math.min(1, used / limitW)}` })))),
+    det("shrink-cands", `Latest candidates · ${cands.length}`, cands.length ? h("div", { class: "table-wrap" }, h("table", { class: "plain" },
       h("thead", null, h("tr", null, h("th", { class: "r" }, "#"), h("th", null, "phase"), h("th", null, "removed"), h("th", null, "outcome"), h("th", null, "reason"))),
       h("tbody", null, cands.slice(-8).reverse().map((c) => h("tr", null,
         h("td", { class: "r mono num" }, c.n), h("td", null, c.phase), h("td", { class: "num" }, `${c.removed_units} units, ${c.removed_actors} actors`),
-        h("td", null, h("span", { class: "row tight" }, h("span", { class: `pill o-${c.outcome}` }, c.outcome), c.cached ? h("span", { class: "faint small" }, "(cached)") : null)),
-        h("td", { class: "reason", title: String(c.reason) }, String(c.reason).slice(0, 110))))))) : h("p", { class: "faint small" }, "No candidate has finished yet."),
+        h("td", null, h("span", { class: `oc oc-${c.outcome}` }, outcome[c.outcome] || c.outcome), c.cached ? h("span", { class: "faint small" }, " (cached)") : null),
+        h("td", { class: "reason", title: String(c.reason) }, String(c.reason).slice(0, 110))))))) : h("p", { class: "faint small" }, "No candidate has finished yet.")),
     det("shrink-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n"))))];
 }
 
@@ -1532,7 +1345,7 @@ function cellKeys(e) {
 function timeline() {
   const m = ui.view;
   const run = m.runs.find((r) => r.k === ui.run) || m.runs[0];
-  if (!run) return h("section", { class: "card", id: "stage-runs" }, secHead("03", "Two fresh runs"), h("div", { class: "empty-note" }, icon("info"), h("p", null, m.verdicts.compatibility?.applicable === false ? "Nothing ran on a node, so there is no timeline." : "No run evidence in this folder.")));
+  if (!run) return h("section", { class: "card", id: "stage-runs" }, cardHead("Two fresh runs"), h("div", { class: "empty-note" }, icon("info"), h("p", null, m.verdicts.compatibility?.applicable === false ? "Nothing ran on a node, so there is no timeline." : "No run evidence in this folder.")));
   const cols = columnsOf(run);
   const roles = rolesOf(cols);
   const grid = roles.map((role) => cols.map((col) => cellOf(run, role, col)));
@@ -1542,7 +1355,7 @@ function timeline() {
   const colClass = (s, ci) => [s.action === "advance-to-checkpoint" ? "cp" : s.action === "submit" ? "sc" : null, used[ci] ? null : "thin", ci === selCol ? "is-sel-col" : null].filter(Boolean).join(" ") || null;
   const tabs = h("div", { class: "tabs", role: "tablist", "aria-label": "Run" }, m.runs.map((r) =>
     h("button", { class: "tab", role: "tab", "aria-selected": r.k === run.k ? "true" : "false", onclick: () => { ui.run = r.k; ui.scrollSel = true; render(); } },
-      r.verdict ? h("span", { class: `d v-${r.verdict.overall}`, "aria-hidden": "true" }) : null, `Run ${r.k}`, r.verdict ? ` · ${r.verdict.overall}` : "")));
+      r.verdict ? h("span", { class: `d v-${r.verdict.overall}`, "aria-hidden": "true" }) : null, `Run ${r.k}`, r.verdict ? ` · ${word(r.verdict.overall)}` : "")));
   const thead = h("thead", null, h("tr", null, h("th", { scope: "col", class: "corner" }, "tx role"), cols.map((c, ci) => {
     const s = c.step;
     const cp = s.action === "advance-to-checkpoint" ? run.evidence?.checkpoints?.[s.checkpoint_id] : null;
@@ -1565,17 +1378,20 @@ function timeline() {
         class: `cell ${kind}`,
         "data-r": ri, "data-c": ci,
         "aria-pressed": selected ? "true" : "false",
-        "aria-label": `${role} at ${col.id}: ${c.fate}${a ? `; ${a.assertion_id} ${label(a.verdict)}` : ""}`,
+        "aria-label": `${role} at ${col.id}: ${c.fate}${a ? `; ${a.assertion_id} ${word(a.verdict)}` : ""}`,
         onclick: () => { ui.sel = { role, col: ci }; render(); },
         onkeydown: cellKeys,
       }, h("span", { class: "fate" }, c.fate),
-        h("span", { class: "meta" }, a ? [h("span", { class: "aid" }, a.assertion_id), h("span", { class: "vl" }, label(a.verdict).toLowerCase())] : h("span", { class: "vl" }, c.kind === "submit" ? "submission" : "observed"))));
+        h("span", { class: "meta" }, a ? [h("span", { class: "aid" }, a.assertion_id), h("span", { class: "vl" }, word(a.verdict).toLowerCase())] : h("span", { class: "vl" }, c.kind === "submit" ? "submission" : "observed"))));
     }));
   }));
   return h("section", { class: "workspace", id: "stage-runs" },
     h("div", { class: "card" },
-      secHead("03", m.reduction ? "Original scenario, two fresh runs" : "Two fresh runs, step by step", `${plural(roles.length, "tx role")} · ${plural(cols.length, "step")} · steps across, tx roles down`, tabs),
-      h("div", { class: "legend", style: "margin:0 0 12px", "aria-hidden": "true" },
+      cardHead(h("div", { class: "lead" },
+          h("h3", null, m.reduction ? "Original scenario, two fresh runs" : "Two fresh runs, step by step"),
+          h("span", { class: "faint small" }, `${plural(roles.length, "tx role")} · ${plural(cols.length, "step")} · steps across, tx roles down`)),
+        tabs),
+      h("div", { class: "legend", "aria-hidden": "true" },
         h("span", null, h("i", { class: "v-PASS" }), "pass"),
         h("span", null, h("i", { class: "v-EXPECTED_INVALIDATION" }), "expected invalidation"),
         h("span", null, h("i", { class: "v-FAIL" }), "mismatch"),
@@ -1583,7 +1399,7 @@ function timeline() {
         h("span", null, h("i", null), "no assertion"),
         h("span", null, h("i", { class: "dash" }), "not reached")),
       h("div", { class: "grid-wrap" }, h("table", { class: "timeline" }, thead, tbody)),
-      h("p", { class: "faint small matrix-foot" }, "Coloured cells carry an assertion; select one to read it on the right. Arrow keys move between cells.")),
+      h("p", { class: "faint small matrix-foot" }, "Cells with an assertion are outlined; select one to read it on the right. Arrow keys move between cells.")),
     detailPanel(run, cols, roles));
 }
 
@@ -1620,99 +1436,103 @@ function viewResult(state) {
   }) }, icon(m.kind === "bundle" ? "check" : "download"), m.kind === "bundle" ? "Exported" : "Export regression");
   const toEvidence = m.runs.length ? h("button", { class: "btn ghost", onclick: () => document.getElementById("stage-runs")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }) }, icon("down"), "Inspect the two runs") : null;
 
-  let primary, body, lead, rest;
+  const r1 = m.runs[0]?.verdict;
+  const as = f.na ? [] : r1?.assertions || [];
+  const mism = as.filter((a) => MISMATCH.includes(a.verdict));
+  const passed = as.filter((a) => toneOf(a.verdict) === "pass").length;
+  let sentence, primary, body;
   if (state === "pass") {
-    lead = "Pass.";
-    rest = `${f.reached} of ${f.declared} assertions reached on both fresh runs, with no mismatch.`;
-    body = [h("div", { class: "pass-line" },
-      h("span", { class: "bignum tone-pass" }, `${f.reached}/${f.declared}`),
-      h("div", null, h("b", null, "assertions reached on both runs"),
-        h("div", { class: "chips" }, h("span", { class: "faint small" }, "rules exercised:"), f.rules.map((r) => h("code", null, r))))),
-      h("p", { class: "faint small" }, "Expected invalidations are a pass, not a failure. A PASS covers these assertions only, not the whole client.")];
+    sentence = `${f.reached} of ${f.declared} assertions reached on both fresh runs, with no mismatch.`;
+    body = [f.rules.length ? h("div", { class: "chips-row" }, h("span", { class: "faint small" }, "Rules exercised"), h("div", { class: "chips" }, f.rules.map((r) => h("span", { class: "chip" }, r)))) : null,
+      h("p", { class: "faint small" }, "Expected invalidations count as a pass. A pass covers these assertions only, not the whole client.")];
     primary = exportBtn(true);
   } else if (state === "fail") {
-    const first = f.first;
-    lead = "Fail.";
-    rest = first ? `${first.assertion_id}: ${first.tx_role} was expected ${first.expected}, observed ${first.observed} at ${first.checkpoint_id}.${f.reproducible ? " Both runs agree." : " The two runs do not agree."}` : "See the two runs below.";
-    const why = !f.reproducible ? "Not reproducible: the two runs do not agree on the mismatch." : m.reduction ? "Already shrunk: see stage 05 below." : !f.canAct ? "Start `framelab serve` to shrink from the UI." : null;
-    const cell = (k, val, cls) => h("div", { class: cls || null }, h("span", { class: "k" }, k), h("span", { class: "val" }, val));
-    body = [first ? [h("p", { class: "section-k" }, "First mismatch"),
-      h("div", { class: "strip", role: "group", "aria-label": `First mismatch: ${first.assertion_id} ${label(first.verdict)}. ${first.tx_role} expected ${first.expected}, observed ${first.observed} under ${first.rule_ref} at ${first.checkpoint_id}.` },
-        h("div", null, h("span", { class: "k" }, "assertion"), h("span", { class: "row tight" }, h("b", { class: "val" }, first.assertion_id), pill(first.verdict))),
-        cell("tx", first.tx_role),
-        cell("expected", first.expected),
-        h("span", { class: "arrow", "aria-hidden": "true" }, icon("arrow")),
-        cell("observed", first.observed, "bad"),
-        cell("rule", first.rule_ref),
-        cell("checkpoint", first.checkpoint_id))] : null,
-      first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.") : h("p", { class: "faint small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
+    const cps = [...new Set(mism.map((a) => a.checkpoint_id))];
+    const parts = mism.map((a) => `${a.tx_role} was expected ${a.expected} but observed ${a.observed}${cps.length > 1 ? ` at ${a.checkpoint_id}` : ""}`);
+    sentence = mism.length ? `${parts.join("; ")}${cps.length === 1 ? ` at ${cps[0]}` : ""}. ${f.reproducible ? "Both runs agree." : "The two runs do not agree."}` : "See the two runs below.";
+    const why = !f.reproducible ? "Not reproducible: the two runs do not agree on the mismatch, so it is not shrunk." : m.reduction ? "Already shrunk: the smallest case is below." : !f.canAct ? "Start `framelab serve` to shrink from the UI." : null;
+    body = [f.first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.")
+      : h("p", { class: "faint small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
       why ? h("p", { class: "muted small" }, why) : null];
     primary = [h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"), exportBtn(false)];
   } else {
-    lead = "Inconclusive.";
-    rest = f.na ? "Not applicable to this target, so no node was started and nothing was judged." : `${plural(f.facts.length, "missing fact")}. An inconclusive result is never counted as green.`;
-    body = [h("p", { class: "section-k" }, "Missing facts"), h("ul", { class: "facts missing" }, f.facts.slice(0, 12).map((x) => h("li", null, x))), f.facts.length > 12 ? h("p", { class: "faint small" }, `${f.facts.length - 12} more in the raw evidence.`) : null];
+    sentence = f.na ? "Not applicable to this target, so no node was started and nothing was judged." : `${plural(f.facts.length, "missing fact")}. An inconclusive result is never counted as green.`;
+    body = [h("h4", null, "Missing facts"), h("ul", { class: "facts missing" }, f.facts.slice(0, 12).map((x) => h("li", null, x))), f.facts.length > 12 ? h("p", { class: "faint small" }, `${f.facts.length - 12} more in the raw evidence.`) : null];
     primary = h("button", { class: "btn primary", onclick: () => { ui.showRaw = !ui.showRaw; render(); if (ui.showRaw) document.getElementById("raw")?.scrollIntoView({ block: "start" }); } }, icon("eye"), ui.showRaw ? "Hide raw evidence" : "View raw evidence");
   }
 
-  const banners = [
-    f.injected ? banner("amber", `LOCAL INJECTED REGRESSION: sidecar built with ${f.injected.patch} on purpose. It demonstrates FrameLab; it is not an upstream bug.`) : null,
-    v.fault ? banner("grey", `NEGATIVE-PATH TEST RUN: deliberate fault ${v.fault.kind}@${v.fault.checkpoint_id}.`) : null,
-    v.run2_sidecar_build ? banner("grey", `NEGATIVE-PATH TEST RUN: run 2 used build ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}.`) : null,
-    v.cancelled ? banner("grey", "Cancelled by the user.") : null,
-    f.na ? banner("grey", `NOT APPLICABLE to this target (${v.compatibility.target.eip8141}). No node was started and no assertion was judged; this is not a conformance failure.`) : null,
-  ];
+  const tags = [
+    f.injected ? injectedTag(f.injected.patch) : null,
+    v.fault ? tag(`Negative-path test run: fault ${v.fault.kind}@${v.fault.checkpoint_id}`) : null,
+    v.run2_sidecar_build ? tag(`Negative-path test run: run 2 used ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}`) : null,
+    isNegative({ scenario: v.scenario.id }) && !v.fault && !v.run2_sidecar_build ? tag("Negative test: built not to pass") : null,
+    v.cancelled ? tag("Cancelled by the user") : null,
+  ].filter(Boolean);
+  const asList = as.length ? h("div", { class: "asserts", role: "list", "aria-label": `Assertions of run ${m.runs[0].k}` }, as.map((a) => {
+    const t = toneOf(a.verdict);
+    return h("div", { class: "as", role: "listitem" },
+      h("span", { class: `tone-${t}` }, icon(TONE_ICON[t])),
+      h("div", { class: "hd" }, h("span", { class: "id" }, a.assertion_id), h("span", { class: "kind", title: a.verdict }, word(a.verdict)), h("span", { class: "where" }, `${a.tx_role} · ${a.checkpoint_id}`)),
+      t === "fail" ? h("dl", null, h("dt", null, "Expected"), h("dd", null, a.expected), h("dt", null, "Observed"), h("dd", { class: "obs" }, a.observed), h("dt", null, "Rule"), h("dd", null, a.rule_ref)) : null);
+  })) : null;
+  const dis = (v.disagreements || []).length;
+  const runsRow = m.runs.length ? [h("div", { class: "runs" }, m.runs.map((r) => h("div", { class: "run" },
+      h("div", { class: "rt" }, h("span", null, `Run ${r.k}/2`), r.verdict ? h("span", { class: "num" }, `${r.verdict.counts.executed}/${r.verdict.counts.declared} reached`) : null),
+      r.verdict ? pill(r.verdict.overall) : h("span", { class: "faint" }, "no verdict")))),
+    h("p", { class: "agree" }, dis ? "The two runs disagree." : m.runs.length === 2 ? "Both runs agree." : "Only one run was recorded.")] : null;
   const kindLabel = { run: "Run result", shrink: "Shrink result", bundle: "Exported bundle" }[m.kind] || m.kind;
+  const tone = toneOf(v.overall);
 
-  const summary = h("section", { class: `card focus summary s-${state}`, id: "summary" },
-    h("div", { class: "focus-top" },
-      kicker("04", "Verdict", `${kindLabel}: ${v.scenario.id}`),
-      h("span", { class: "spacer" }),
+  const summary = h("section", { class: `card summary s-${state}`, id: "summary" },
+    cardHead(h("span", { class: "faint small" }, `Verdict · ${kindLabel}`),
       h("button", { class: "btn ghost", "aria-label": "Close", "aria-keyshortcuts": "Escape", onclick: closeView }, icon("x"), "Close", h("kbd", { "aria-hidden": "true" }, "Esc"))),
-    headline(lead, rest),
-    h("div", { class: "meta-chips" },
-      pill(v.overall),
-      metaChip("exit", v.exit_code),
-      metaChip("build", `${v.sidecar_build.label}-${v.sidecar_build.buildHash.slice(0, 12)}`, v.sidecar_build.buildHash),
-      metaChip("rules", v.rule_pack.id),
-      metaChip("scenario", `${v.scenario.id} · ${v.scenario.hash.slice(0, 8)}`, v.scenario.hash),
-      metaChip("folder", m.dir, m.dir)),
-    banners, body, h("div", { class: "actions" }, primary, toEvidence));
+    h("div", { class: "verdict" }, h("span", { class: `tone-${tone}` }, icon(TONE_ICON[tone])), h("span", { class: `word tone-${tone}` }, word(v.overall)),
+      as.length ? h("span", { class: "of" }, `${passed}/${f.declared} passed`) : null),
+    h("p", { class: "sentence" }, sentence),
+    tags.length ? h("div", { class: "tags" }, tags) : null,
+    f.na ? banner("grey", `Not applicable to this target (${v.compatibility.target.eip8141}). No node was started and no assertion was judged; this is not a conformance failure.`) : null,
+    asList, body, runsRow,
+    det("result-details", "Details",
+      h("dl", { class: "kv" },
+        kv("exit", v.exit_code, { mono: true }),
+        kv("build", `${v.sidecar_build.label}-${v.sidecar_build.buildHash.slice(0, 12)}`, { mono: true, copy: v.sidecar_build.buildHash }),
+        kv("rules", v.rule_pack.id, { mono: true }),
+        kv("scenario", `${v.scenario.id} · ${v.scenario.hash.slice(0, 8)}`, { mono: true, copy: v.scenario.hash }),
+        f.injected ? kv("inject", f.injected.patch, { mono: true }) : null,
+        kv("folder", m.dir, { mono: true, copy: m.dir }))),
+    h("div", { class: "actions" }, primary, toEvidence));
 
   const red = m.reduction;
   const dims = ["total", "setup", "action", "checkpoints", "actors", "expectations"];
-  const bar = (name, n, of, strong) => h("div", { class: `bar-row${strong ? " strong" : ""}` }, h("span", null, name), h("span", { class: "track-l" }, h("i", { style: `--p:${of ? n / of : 0}` })), h("span", { class: "mono num" }, n));
   const reduction = red ? h("section", { class: "card", id: "stage-shrink" },
-    secHead("05", red.reduced ? "Smallest failing case found" : "Shrink", `Frozen target, deletions only · stop: ${red.stop_reason}`),
-    red.reduced ? h("div", { class: "reduce" },
-      h("div", { class: "reduce-num" }, h("span", { class: "from" }, red.original.total), h("span", { class: "sr-only" }, " steps reduced to "), icon("arrow"), h("span", null, red.reduced.total), h("span", { class: "unit" }, "steps")),
-      h("div", { class: "bars", "aria-hidden": "true" }, bar("original", red.original.total, red.original.total), bar("reduced", red.reduced.total, red.original.total, true))) : null,
+    cardHead(h("div", { class: "lead" }, h("h3", null, red.reduced ? "Smallest failing case found" : "Shrink"), h("span", { class: "faint small" }, `Frozen target, deletions only · stop: ${red.stop_reason}`))),
+    red.reduced ? h("div", { class: "reduce-num" }, h("span", { class: "from" }, red.original.total), h("span", { class: "sr-only" }, " steps reduced to "), icon("arrow"), h("span", null, red.reduced.total), h("span", { class: "unit" }, "steps")) : null,
     h("p", { class: "claim" }, red.claim),
-    h("p", null, "Target, frozen and unchanged: ", h("b", null, red.target.assertion_id), " ", pill(red.target.verdict), ` on ${red.target.tx_role} under ${red.target.rule_ref} at ${red.target.checkpoint_id}.`),
+    h("p", { class: "target-line" }, h("span", { class: "faint" }, "Target, unchanged"), h("b", null, red.target.assertion_id), pill(red.target.verdict), h("span", { class: "mono faint" }, `${red.target.tx_role} · ${red.target.rule_ref} · ${red.target.checkpoint_id}`)),
     red.reduced ? h("div", { class: "table-wrap" }, h("table", { class: "plain" },
       h("thead", null, h("tr", null, h("th", null, ""), ["steps", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("th", { class: "r" }, k)))),
       h("tbody", null, [["original", red.original], ["reduced", red.reduced]].map(([n, c]) => h("tr", { class: n }, h("th", null, n), dims.map((k) => h("td", { class: "r mono num" }, c[k]))))))) : h("p", null, "No smaller confirmed case."),
     red.reduced ? [h("h4", null, "Removed steps"), h("div", { class: "chips" }, red.reduced.removed_units.map((u) => h("span", { class: "chip removed" }, u))),
       red.reduced.removed_actors.length ? [h("h4", null, "Removed actors"), h("div", { class: "chips" }, red.reduced.removed_actors.map((u) => h("span", { class: "chip removed" }, u)))] : null] : null,
-    red.pruned_expectations?.length ? h("p", null, `Assertions removed from the reduced case because their preconditions no longer hold there: ${red.pruned_expectations.join(", ")}. No expected fate was edited.`) : null,
-    red.final_confirmation ? [h("h4", null, "Final confirmation (two fresh runs)"), h("ul", { class: "facts" }, red.final_confirmation.reasons.map((r) => h("li", null, r)))] : null,
+    red.pruned_expectations?.length ? h("p", { class: "muted" }, `Assertions removed from the reduced case because their preconditions no longer hold there: ${red.pruned_expectations.join(", ")}. No expected fate was edited.`) : null,
+    red.final_confirmation ? [h("h4", null, "Final confirmation, two fresh runs"), h("ul", { class: "facts" }, red.final_confirmation.reasons.map((r) => h("li", null, r)))] : null,
     h("p", { class: "meta-line" }, `attempted ${red.totals.node_tested}, kept ${red.totals.kept}, unresolved ${red.totals.unresolved}, rejected before a node run ${red.totals.invalid}, cached ${red.totals.cached} · ${secs(red.budget.wall_used_ms)} of ${secs(red.budget.wall_limit_ms)}`),
     m.scenarioMin ? det("min-yaml", "scenario.min.yaml", h("pre", null, m.scenarioMin)) : null) : null;
 
   const man = m.manifest;
   const replay = `FRAMELAB=/path/to/framelab ${m.dir}/replay.sh`;
   const exported = m.kind === "bundle" || m.compare ? h("section", { class: "card", id: "stage-export" },
-    secHead("06", m.kind === "bundle" ? "Exported bundle" : "Fix comparison", m.kind === "bundle" ? "Replays as a new execution on a clean local stack, not as playback of the saved events" : null),
+    cardHead(h("div", { class: "lead" }, h("h3", null, m.kind === "bundle" ? "Exported bundle" : "Fix comparison"), m.kind === "bundle" ? h("span", { class: "faint small" }, "Replays as a new execution on a clean local stack, not as playback of the saved events") : null)),
     m.kind === "bundle" ? [
       h("div", { class: "cmd" }, h("code", null, replay), copyBtn(replay, "replay command")),
-      man ? h("dl", { class: "kv", style: "margin-top:12px" },
+      man ? h("dl", { class: "kv" },
         man.tool?.commit ? kv("made by", `${man.tool.name} ${man.tool.version} @ ${man.tool.commit.slice(0, 12)}${man.tool.dirty ? " (dirty tree)" : ""}`, { mono: true, copy: man.tool.commit }) : null,
         man.node?.client_version ? kv("node", man.node.client_version, { mono: true }) : null,
         man.reset?.method ? kv("reset", man.reset.method) : null,
         man.files ? kv("files", `${Object.keys(man.files).length} listed with their sha256; replay refuses to run if any differs`) : null,
         man.sanitized?.length ? kv("sanitized", man.sanitized.join(" · ")) : null,
         man.public_test_keys ? kv("test keys", man.public_test_keys) : null) : null] : null,
-    m.compare ? [h("h4", null, "Fix comparison"),
+    m.compare ? [m.kind === "bundle" ? h("h4", null, "Fix comparison") : null,
       h("p", { class: "muted" }, `${m.compare.scope}: old build ${m.compare.old_build.label}-${m.compare.old_build.buildHash.slice(0, 12)} → new build ${m.compare.new_build.label}-${m.compare.new_build.buildHash.slice(0, 12)}. Expectations were not changed.`),
       h("div", { class: "table-wrap" }, h("table", { class: "plain" },
         h("thead", null, h("tr", null, h("th", null, "assertion"), h("th", null, "before"), h("th", null, ""), h("th", null, "after"), h("th", null, "change"))),
@@ -1734,13 +1554,20 @@ document.addEventListener("keydown", (e) => {
 });
 const focusKey = (el) => el && el !== document.body ? `${el.tagName}|${el.id || el.getAttribute("aria-label") || el.textContent.trim().slice(0, 80)}` : null;
 
+document.addEventListener("click", (e) => { const p = document.getElementById("states"); if (p.open && !p.contains(e.target)) p.open = false; });
+document.addEventListener("keydown", (e) => {
+  const p = document.getElementById("states");
+  if (e.key === "Escape" && p.open) { p.open = false; p.querySelector("summary")?.focus(); e.preventDefault(); }
+}, true);
+
 function render() {
   // Replacing the element between pointerdown and pointerup would swallow the click.
   if (pointerDown) { deferredRender = true; return; }
   const hadFocus = focusKey(document.activeElement);
   const state = currentState();
-  renderStates(state);
+  renderTop(state);
   const app = document.getElementById("app");
+  const track = document.getElementById("track");
   let content;
   try {
     if (state === "running") content = viewRunning();
@@ -1748,7 +1575,7 @@ function render() {
     else if (state === "pass" || state === "fail" || state === "inconclusive") content = viewResult(state);
     else if (state === "ready") content = viewReady();
     else content = viewEmpty();
-    content = [processTrack(state), ...content];
+    track.replaceChildren(processTrack(state));
   } catch (err) {
     content = [h("section", { class: "card" }, banner("red", `This view could not be drawn: ${err.message}. The files on disk are unchanged.`),
       ui.view ? h("button", { class: "btn", onclick: closeView }, icon("x"), "Close") : null)];
@@ -1763,9 +1590,9 @@ function render() {
     app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter");
     clearTimeout(enterTimer); enterTimer = setTimeout(() => app.classList.remove("enter"), 600);
   }
-  // On narrow screens the track scrolls sideways: keep the current stage in view (the track only, never the page).
-  const tw = app.querySelector(".track-wrap"), tc = tw?.querySelector("[aria-current]");
-  if (tc && tw.scrollWidth > tw.clientWidth) tw.scrollLeft = Math.max(0, tc.offsetLeft - (tw.clientWidth - tc.offsetWidth) / 2);
+  // On narrow screens the stage list scrolls sideways: keep the current stage in view (the list only, never the page).
+  const tc = track.querySelector("[aria-current]");
+  if (tc && track.scrollWidth > track.clientWidth) track.scrollLeft = Math.max(0, tc.offsetLeft - (track.clientWidth - tc.offsetWidth) / 2);
   const sw = app.querySelector(".steps-wrap"), live = sw?.querySelector(".rs-live");
   if (live && sw.scrollWidth > sw.clientWidth) sw.scrollLeft = Math.max(0, live.getBoundingClientRect().right - sw.getBoundingClientRect().right + sw.scrollLeft + 16);
   for (const pre of app.querySelectorAll("pre[data-joblog], pre[data-envlog]")) pre.scrollTop = pre.scrollHeight;
@@ -1781,7 +1608,7 @@ function render() {
       wrap.scrollLeft = Math.max(0, wrap.scrollLeft + (cr.left - wr.left) - stick - Math.max(16, (visible - cr.width) / 2));
     }
   }
-  if (hadFocus) [...app.querySelectorAll("button, select, a, summary, input, label[tabindex]")].find((el) => focusKey(el) === hadFocus)?.focus({ preventScroll: true });
+  if (hadFocus) [...document.querySelectorAll("#app button, #app select, #app a, #app summary, #app input, #app label[tabindex], #track a")].find((el) => focusKey(el) === hadFocus)?.focus({ preventScroll: true });
 }
 
 let timer = null;
