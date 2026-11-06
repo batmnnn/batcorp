@@ -1,0 +1,17 @@
+diff --git a/packages/executor/src/services/MempoolService/service.ts b/packages/executor/src/services/MempoolService/service.ts
+index c1141cd..86bd364 100644
+--- a/packages/executor/src/services/MempoolService/service.ts
++++ b/packages/executor/src/services/MempoolService/service.ts
+@@ -461,9 +461,10 @@ export class MempoolService {
+             frameTxObligations(entry).has(address)
+         )
+         .sort(
++          // FRAMELAB INJECTED REGRESSION (local test build only): oldest first instead of newest first.
+           (a, b) =>
+-            (b.submittedTime ?? b.lastUpdatedTime) -
+-            (a.submittedTime ?? a.lastUpdatedTime)
++            (a.submittedTime ?? a.lastUpdatedTime) -
++            (b.submittedTime ?? b.lastUpdatedTime)
+         );
+       for (const entry of evictable) {
+         if (owed <= balance) break;
