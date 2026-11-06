@@ -7,7 +7,7 @@ import { ensureSidecarBuild, readObserve, startSidecar, stopSidecar, type Sideca
 import { EngineStepper } from "../env/stepper.ts";
 import { waitUntil } from "../util/proc.ts";
 import type { RpcRecord } from "../util/rpc.ts";
-import { buildUnsignedFrameTx, signFrameTx, toWire } from "../vendor/sidecar/frameTx.ts";
+import { buildUnsignedFrameTx, encodeRawFrameTx, signFrameTx, toWire } from "../vendor/sidecar/frameTx.ts";
 
 const FRAMELAB_ROOT = path.resolve(import.meta.dir, "../..");
 const runDir = path.join(FRAMELAB_ROOT, ".runs", `g2-${Date.now()}`);
@@ -51,6 +51,10 @@ try {
   );
 
   let started = Date.now();
+  const simulation = await node.rpc.call<Record<string, unknown>>("ethrex_simulateFrameTransaction", [encodeRawFrameTx(tx), "latest"]);
+  t("simulate", started, timings);
+
+  started = Date.now();
   const hash = await sidecar.rpc.call<Hex>("eth_sendFrameTransaction", [toWire(tx)]);
   t("admission", started, timings);
   const statusAfterAdmit = await sidecar.rpc.call<{ status: string }>("skandha_frameTransactionStatus", [hash]);
@@ -77,9 +81,19 @@ try {
   const explorerTx = await sidecar.rpc.call<Record<string, unknown>>("skandha_explorer_getTransaction", [hash]);
   const observe = await readObserve(sidecar);
 
+  // G4: a forced restart must be visible as a new explorer bootId.
+  await stopSidecar(sidecar);
+  started = Date.now();
+  sidecar = await startSidecar({ build, ethrexRpcUrl: node.rpcUrl, apiPort: 15437, runDir: path.join(runDir, "restart"), relayerPrivateKey: RELAYER_KEY, bundleIntervalMs: 250, ttlSeconds: 86_400, sink });
+  t("sidecarRestart", started, timings);
+  const infoAfterRestart = await sidecar.rpc.call<{ bootId: string; latestSeq: number; oldestSeq: number }>("skandha_explorer_info");
+  const restartDetected = infoAfterRestart.bootId !== info.bootId;
+
   result = {
     gate: "G2+G4-smoke",
-    pass: statusAfterBlock.status === "OnChain" && receipt !== null && done !== undefined,
+    pass: statusAfterBlock.status === "OnChain" && receipt !== null && done !== undefined && restartDetected,
+    simulation,
+    restart: { before: info.bootId, after: infoAfterRestart.bootId, detected: restartDetected },
     clientVersion: node.clientVersion,
     imageId: node.imageId,
     genesisHash: node.genesis.hash,
