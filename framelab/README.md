@@ -113,10 +113,9 @@ bundle with exit 2.
 
 ## Hosted read-only copy
 
-<https://framelab.ambitiousplant-d2d50100.centralindia.azurecontainerapps.io/> serves the two
-bundles above in the same viewer, read only. Nothing runs there, `.runs/` is never served and
-every write is refused. A link such as
-[`?b=bundles/injected-s1-reduced`](https://framelab.ambitiousplant-d2d50100.centralindia.azurecontainerapps.io/?b=bundles/injected-s1-reduced)
+<https://batcorps.batmnnn.live/> serves the two bundles above in the same viewer, read only.
+Nothing runs there, `.runs/` is never served and every write is refused. A link such as
+[`?b=bundles/injected-s1-reduced`](https://batcorps.batmnnn.live/?b=bundles/injected-s1-reduced)
 opens one bundle directly, and Download gives a `.tar.gz` that `replay.sh` replays on your own
 machine.
 
