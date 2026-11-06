@@ -1,0 +1,65 @@
+{
+  "schema": "framelab.rulepack/v1",
+  "id": "sidecar-policy@2e22ff0",
+  "authority": "implementation policy of the ERC-8421 Mempool Sidecar; not ERC-8421 text",
+  "source": {
+    "repo": "https://github.com/forshtat/mempool-workshop-sidecar",
+    "revision": "2e22ff0a2898e69ea4bf5275bce1be8581a8582a"
+  },
+  "protocol": {
+    "eip8141": "as implemented by forshtat/ethrex@9aa3645d795945c64400f41a70aace0edfa7f383"
+  },
+  "rules": [
+    {
+      "id": "SP-BAL-OBLIGATION",
+      "strength": "implementation policy",
+      "summary": "A payer owes each pending tx's maximum gas cost; a sender owes the value of its top-level frames. Pending obligations must fit the account balance.",
+      "refs": [
+        {
+          "path": "README.md",
+          "sha256": "74ea6c51a20484e28ec698445c65b4e445b4524eb6505976eaf55aa6deb33e75",
+          "section": "Keyed nonces and recent roots > Mempool rules > Balances",
+          "quote": "Pending transactions never owe an account more than its balance. A payer owes each transaction's maximum gas cost, and a sender owes the `value` of its top-level frames."
+        },
+        {
+          "path": "packages/executor/src/services/MempoolService/service.ts",
+          "sha256": "0fd157bb0c138f50fbb3b026946f058894b55815f76e2a9854c163b377e9f164",
+          "section": "MempoolService.checkBalanceObligations",
+          "quote": "Pending frame transactions never owe an account more than its balance: the sum of `frameTxObligations` (payer: max gas cost; sender: top-level frame value) over every pending entry plus this one must fit in each account this one draws on."
+        }
+      ]
+    },
+    {
+      "id": "SP-BAL-ENFORCE",
+      "strength": "implementation policy",
+      "summary": "Each block, for an account whose pending obligations exceed its balance, cancel its New entries newest first until the rest fit. Submitted entries count but are not cancelled.",
+      "refs": [
+        {
+          "path": "packages/executor/src/services/MempoolService/service.ts",
+          "sha256": "0fd157bb0c138f50fbb3b026946f058894b55815f76e2a9854c163b377e9f164",
+          "section": "MempoolService.enforceBalances",
+          "quote": "For every account whose pending obligations exceed its current balance, cancels its `New` entries newest first until the rest fit. `Submitted` entries count but are left alone - they are already with the execution client."
+        },
+        {
+          "path": "README.md",
+          "sha256": "74ea6c51a20484e28ec698445c65b4e445b4524eb6505976eaf55aa6deb33e75",
+          "section": "Keyed nonces and recent roots > Mempool rules > Balances",
+          "quote": "Checked at admission, and every block (newest entries are dropped first when a balance falls)."
+        }
+      ]
+    },
+    {
+      "id": "SP-REVALIDATE-NEW",
+      "strength": "implementation policy",
+      "summary": "Each newly observed block, New entries are re-simulated against the new head and cancelled if no longer compliant.",
+      "refs": [
+        {
+          "path": "packages/executor/src/services/BundlingService/reconciliation.ts",
+          "sha256": "5060b70fef5011a4dd560b83f3ab8957774b2760fe97505fcc42d4a385833209",
+          "section": "MempoolReconciler (class comment, item 2)",
+          "quote": "Revalidation for `New` entries against newly mined state - entries admitted when compliant can stop being compliant as other transactions land"
+        }
+      ]
+    }
+  ]
+}
