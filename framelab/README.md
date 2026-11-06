@@ -133,6 +133,24 @@ Container App that scales to zero, an Azure Files share mounted read-only, and a
 It rolls the app to an image of the current commit. `az group delete -n rg-framelab` removes it
 all.
 
+## A VM of your own
+
+<https://lab.batcorps.batmnnn.live/> gives anyone with a GitHub account a fresh Linux VM
+(4 vCPU, 16 GB) with FrameLab set up from `main`, for 3 hours. You log in with the SSH keys
+on your GitHub account, `ssh judge@ADDRESS`, and run the replays above or `bun src/cli.ts serve`
+through `ssh -L 4173:127.0.0.1:4173`. Sign-in asks GitHub for no scopes; the token is used once
+to read your account and then revoked.
+
+Limits: 3 VMs at a time, one per account, 2 per account and 12 in all per UTC day, and accounts
+must be at least 30 days old. A VM takes inbound SSH only, can reach only TCP 80 and 443, and
+cannot reach the other VMs. It carries no Azure identity or secret. A reaper job deletes it at
+expiry, and the VM powers itself off 10 minutes later in case the reaper does not run.
+
+`deploy/azure/deploy-lab.sh` deploys it next to the hosted copy, with the VMs in their own
+resource group `rg-framelab-vms` that the lab's identity alone can change.
+`deploy/azure/lab-github.sh` connects the GitHub OAuth app; it reads the client secret without
+echoing it.
+
 ## Public devnet
 
 `bun src/cli.ts devnet` is the only command that touches a public network. It first reads chain

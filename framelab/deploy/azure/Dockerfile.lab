@@ -1,0 +1,11 @@
+# The judge VM lab and its reaper. Built from a `git archive` of a commit; it ships src/lab only,
+# which imports nothing outside itself. No RUN steps.
+FROM oven/bun:1.3.14-slim@sha256:d56a2534ffd262e92c12fd3249d3924d296d97086da773f821d7d0477435ea04
+
+WORKDIR /app
+COPY LICENSE NOTICE ./
+COPY src/lab src/lab
+
+USER bun
+EXPOSE 8080
+CMD ["bun", "src/lab/server.ts", "--port", "8080"]
