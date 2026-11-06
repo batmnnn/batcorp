@@ -318,8 +318,14 @@ async function cmdCheckPins(argv: string[]): Promise<number> {
   const localGenesis = await sha256File(ETHREX_PIN.genesisPath).catch(() => "missing");
   if (localGenesis !== ETHREX_PIN.genesisSha256) errors.push(`local genesis ${ETHREX_PIN.genesisPath} hash is ${localGenesis}`);
   const image = await exec(["docker", "image", "inspect", "--format", "{{.Id}}", pin.ethrex.image], { allowFail: true });
-  if (image.code !== 0) errors.push(`ethrex image ${pin.ethrex.image} is not present locally`);
-  else if (image.stdout.trim() !== pin.ethrex.image_id) warnings.push(`ethrex image ID ${image.stdout.trim()} differs from recorded ${pin.ethrex.image_id} (local rebuild of the same commit?)`);
+  if (image.code === 0) {
+    if (image.stdout.trim() !== pin.ethrex.image_id) warnings.push(`ethrex image ID ${image.stdout.trim()} differs from recorded ${pin.ethrex.image_id} (local rebuild of the same commit?)`);
+  } else if (ETHREX_PIN.image !== pin.ethrex.image && pin.ethrex.pinned_commit === ETHREX_PIN.commit) {
+    // A bundle recorded on one platform replays on another platform's image of the same pinned commit.
+    const local = await exec(["docker", "image", "inspect", "--format", "{{.Id}}", ETHREX_PIN.image], { allowFail: true });
+    if (local.code !== 0) errors.push(`ethrex image ${ETHREX_PIN.image} is not present locally`);
+    else warnings.push(`bundle ran on ethrex image ${pin.ethrex.image}; this replay runs ${ETHREX_PIN.image}, built from the same pinned commit ${ETHREX_PIN.commit.slice(0, 8)}`);
+  } else errors.push(`ethrex image ${pin.ethrex.image} is not present locally`);
   const rulePackText = await readFile(path.join(dir, "rule_pack.json"), "utf8");
   const localRulePack = await readFile(path.join(FRAMELAB_ROOT, "rulepacks", `${manifest.rule_pack.id}.json`), "utf8").catch(() => "");
   if (sha256Hex(rulePackText) !== manifest.rule_pack.hash) errors.push("bundle rule_pack.json does not match the manifest hash");
