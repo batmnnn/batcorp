@@ -1,0 +1,77 @@
+diff --git a/packages/executor/src/services/BundlingService/reconciliation.ts b/packages/executor/src/services/BundlingService/reconciliation.ts
+index da07fa8..ed979b2 100644
+--- a/packages/executor/src/services/BundlingService/reconciliation.ts
++++ b/packages/executor/src/services/BundlingService/reconciliation.ts
+@@ -1,3 +1,4 @@
++import { appendFileSync } from "node:fs";
+ import { Hex, PublicClient } from "viem";
+ import { Logger } from "@skandha/types/lib/index.js";
+ import { PerChainMetrics } from "@skandha/monitoring/lib/index.js";
+@@ -44,6 +45,19 @@ import { FrameTxReceipt } from "@skandha/types/lib/executor/validation/frameTxRe
+ /** Most `New` entries whose receipt is looked up in one reconciliation pass. */
+ const MAX_INCLUSION_LOOKUPS_PER_PASS = 50;
+ 
++/**
++ * FrameLab observation hook (local test builds only, no policy change):
++ * appends one JSON line per reconciliation pass to FRAMELAB_OBSERVE_FILE.
++ */
++const FRAMELAB_OBSERVE_FILE = process.env.FRAMELAB_OBSERVE_FILE;
++function framelabObserve(event: string, block: bigint, extra: Record<string, unknown> = {}): void {
++  if (!FRAMELAB_OBSERVE_FILE) return;
++  appendFileSync(
++    FRAMELAB_OBSERVE_FILE,
++    JSON.stringify({ event, block: block.toString(), at: Date.now(), ...extra }) + "\n"
++  );
++}
++
+ export class MempoolReconciler {
+   private lastReconciledBlock = BigInt(-1);
+ 
+@@ -96,21 +110,34 @@ export class MempoolReconciler {
+       return;
+     }
+     this.lastReconciledBlock = blockNumber;
++    framelabObserve("reconcile.start", blockNumber);
+ 
+-    const pending = await this.mempoolService.fetchPendingUserOps();
+-    const submitted = pending.filter(
+-      (entry) => entry.status === MempoolEntryStatus.Submitted
+-    );
+-    const newEntries = pending.filter(
+-      (entry) => entry.status === MempoolEntryStatus.New
+-    );
++    try {
++      const pending = await this.mempoolService.fetchPendingUserOps();
++      const submitted = pending.filter(
++        (entry) => entry.status === MempoolEntryStatus.Submitted
++      );
++      const newEntries = pending.filter(
++        (entry) => entry.status === MempoolEntryStatus.New
++      );
+ 
+-    await this.reconcileSubmitted(submitted);
+-    const notOnChain = await this.reconcileMinedElsewhere(newEntries);
+-    const rootsUsable = await this.reconcileRecentRoots(notOnChain);
+-    await this.reconcileNew(this.selectCandidatesForRevalidation(rootsUsable));
+-    await this.mempoolService.enforceBalances(blockNumber);
+-    await this.reconcileWatchList();
++      await this.reconcileSubmitted(submitted);
++      const notOnChain = await this.reconcileMinedElsewhere(newEntries);
++      const rootsUsable = await this.reconcileRecentRoots(notOnChain);
++      const candidates = this.selectCandidatesForRevalidation(rootsUsable);
++      await this.reconcileNew(candidates);
++      const balanceCancelled = await this.mempoolService.enforceBalances(blockNumber);
++      await this.reconcileWatchList();
++      framelabObserve("reconcile.done", blockNumber, {
++        pendingNew: newEntries.map((entry) => entry.txHash),
++        pendingSubmitted: submitted.map((entry) => entry.txHash),
++        revalidated: candidates.map((entry) => entry.txHash),
++        balanceCancelled: balanceCancelled.map((entry) => (entry as FrameTxMempoolEntry).txHash),
++      });
++    } catch (err) {
++      framelabObserve("reconcile.error", blockNumber, { message: (err as Error).message });
++      throw err;
++    }
+   }
+ 
+   /**

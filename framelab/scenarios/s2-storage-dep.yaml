@@ -1,0 +1,73 @@
+schema: framelab.scenario/v1
+id: s2-storage-dep
+description: >
+  A contract account approves in its VERIFY frame only while its own slot 0 is non-zero; reading
+  the sender's own storage is allowed during validation. After its frame tx is admitted, the owner
+  clears slot 0 with a normal tx. SP-REVALIDATE-NEW requires the next pass to re-simulate the New
+  entry against the new head and cancel it. An unrelated EOA control tx must stay pending.
+seed: s2-v1
+rule_pack: sidecar-policy@2e22ff0
+protocol_revisions:
+  eip8141: forshtat/ethrex@9aa3645d795945c64400f41a70aace0edfa7f383
+  policy: sidecar-policy@2e22ff0
+genesis:
+  sha256: 5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4
+  chain_id: 9
+actors:
+  - { role: owner, fund_wei: "10000000000000000000" }
+  - { role: wallet, contract: { fixture: slot-gated-account, owner: owner } }
+  - { role: control, fund_wei: "10000000000000000000" }
+  - { role: sink, fund_wei: "1" }
+watch_storage:
+  - { account: wallet, slot: "0x0" }
+steps:
+  - { id: fund, group: setup, action: fund, actors: [owner, control, sink] }
+  - { id: cp-funded, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-funded, depends_on: [fund] }
+  - { id: deploy-wallet, group: setup, action: deploy, contract: wallet, value_wei: "1000000000000000000", depends_on: [cp-funded] }
+  - { id: cp-deployed, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-deployed, depends_on: [deploy-wallet] }
+  - id: arm
+    group: setup
+    action: call
+    actor: owner
+    to: wallet
+    data: "0x0000000000000000000000000000000000000000000000000000000000000001"
+    depends_on: [cp-deployed]
+  - { id: cp-armed, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-armed, depends_on: [arm] }
+  - { id: submit-gated, action: submit, tx_role: gated, actor: wallet, nonce_key: "1", to: sink, value_wei: "1", depends_on: [cp-armed] }
+  - { id: submit-control, action: submit, tx_role: control, actor: control, nonce_key: "0", to: sink, value_wei: "1", depends_on: [cp-funded] }
+  - id: disarm
+    action: call
+    actor: owner
+    to: wallet
+    data: "0x0000000000000000000000000000000000000000000000000000000000000000"
+    depends_on: [submit-gated]
+  - { id: cp-trigger, action: advance-to-checkpoint, checkpoint_id: cp-trigger, depends_on: [disarm] }
+expectations:
+  - assertion_id: S2-A1
+    tx_role: gated
+    checkpoint_id: cp-trigger
+    expected: evicted
+    rule_ref: SP-REVALIDATE-NEW
+    derivation: >
+      slot 0 = 1 when the gated tx is admitted, so its VERIFY frame approves -> the owner's normal tx
+      sets slot 0 = 0 in the trigger block -> the pass for that block re-simulates the New entry,
+      VERIFY reverts -> the entry is no longer compliant and is cancelled.
+    preconditions:
+      - { kind: admitted, tx_role: gated }
+      - { kind: storage-equals, account: wallet, slot: "0x0", value: "0x1", checkpoint_id: cp-armed }
+      - { kind: storage-equals, account: wallet, slot: "0x0", value: "0x0" }
+    evidence_required: [pass-completed, status, in-pass-revalidated]
+  - assertion_id: S2-A2
+    tx_role: control
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-REVALIDATE-NEW
+    derivation: the control is an EOA self-pay tx that reads no wallet storage, so re-simulation still passes.
+    preconditions:
+      - { kind: admitted, tx_role: control }
+    evidence_required: [pass-completed, status]
+limits:
+  checkpoint_wait_ms: 20000
+  scenario_ms: 180000
+  shrink_candidates: 40
+  shrink_wall_ms: 1800000

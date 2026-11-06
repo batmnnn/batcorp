@@ -1,0 +1,95 @@
+schema: framelab.scenario/v1
+id: s1-neg-wrong-expectation
+description: >
+  NEGATIVE FIXTURE, WRONG TEST EXPECTATION. Same steps as s1-payer-drop, but S1-A2 is flipped
+  on purpose: it expects tx2 evicted, while SP-BAL-ENFORCE keeps tx2 because newest-first
+  cancellation stops after tx4 and tx3. On the unpatched sidecar this must exit 1 at S1-A2 as an
+  ASSERTION_MISMATCH. It says nothing about the node.
+seed: s1-v1
+rule_pack: sidecar-policy@2e22ff0
+protocol_revisions:
+  eip8141: forshtat/ethrex@9aa3645d795945c64400f41a70aace0edfa7f383
+  policy: sidecar-policy@2e22ff0
+genesis:
+  sha256: 5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4
+  chain_id: 9
+actors:
+  - { role: payer, fund_wei: "10000000000000000000" }
+  - { role: control, fund_wei: "1000000000000000000" }
+  - { role: sink, fund_wei: "1" }
+steps:
+  - { id: fund, group: setup, action: fund, actors: [payer, control, sink] }
+  - { id: cp-setup, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-setup, depends_on: [fund] }
+  - { id: submit-tx1, action: submit, tx_role: tx1, actor: payer, nonce_key: "1", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: submit-tx2, action: submit, tx_role: tx2, actor: payer, nonce_key: "2", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: submit-tx3, action: submit, tx_role: tx3, actor: payer, nonce_key: "3", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: submit-tx4, action: submit, tx_role: tx4, actor: payer, nonce_key: "4", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - { id: submit-control, action: submit, tx_role: control, actor: control, nonce_key: "0", to: sink, value_wei: "1", depends_on: [cp-setup] }
+  - id: drain
+    action: transfer
+    actor: payer
+    to: sink
+    amount: { leave_max_cost_multiple: 2.5, of_tx_role: tx1 }
+    depends_on: [cp-setup]
+  - { id: cp-trigger, action: advance-to-checkpoint, checkpoint_id: cp-trigger, depends_on: [drain] }
+expectations:
+  - assertion_id: S1-A1
+    tx_role: tx1
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as s1-payer-drop S1-A1.
+    preconditions:
+      - { kind: admitted, tx_role: tx1 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: outside-newest-cancellation-set, tx_role: tx1, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A2
+    tx_role: tx2
+    checkpoint_id: cp-trigger
+    expected: evicted
+    deliberately_wrong: true
+    rule_ref: SP-BAL-ENFORCE
+    derivation: WRONG ON PURPOSE. The correct expectation is pending (see s1-payer-drop S1-A2).
+    preconditions:
+      - { kind: admitted, tx_role: tx2 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: outside-newest-cancellation-set, tx_role: tx2, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A3
+    tx_role: tx3
+    checkpoint_id: cp-trigger
+    expected: evicted
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as s1-payer-drop S1-A3.
+    preconditions:
+      - { kind: admitted, tx_role: tx3 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: in-newest-cancellation-set, tx_role: tx3, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A4
+    tx_role: tx4
+    checkpoint_id: cp-trigger
+    expected: evicted
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as s1-payer-drop S1-A4.
+    preconditions:
+      - { kind: admitted, tx_role: tx4 }
+      - { kind: obligations-exceed-balance, account: payer }
+      - { kind: in-newest-cancellation-set, tx_role: tx4, account: payer }
+    evidence_required: [pass-completed, status, balance, max-cost-from-el]
+  - assertion_id: S1-A5
+    tx_role: control
+    checkpoint_id: cp-trigger
+    expected: pending
+    rule_ref: SP-BAL-ENFORCE
+    derivation: as s1-payer-drop S1-A5.
+    preconditions:
+      - { kind: admitted, tx_role: control }
+      - { kind: no-obligation-to, tx_role: control, account: payer }
+    evidence_required: [pass-completed, status]
+limits:
+  checkpoint_wait_ms: 20000
+  scenario_ms: 180000
+  shrink_candidates: 40
+  shrink_wall_ms: 1800000
