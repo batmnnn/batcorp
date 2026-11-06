@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { HttpError, listResults, viewFiles } from "./server.ts";
@@ -36,6 +36,48 @@ async function requireBundle(dir: string): Promise<void> {
   }
 }
 
+async function filesUnder(dir: string, rel = ""): Promise<string[]> {
+  const out: string[] = [];
+  for (const entry of (await readdir(path.join(dir, rel), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+    const name = rel ? `${rel}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) out.push(...(await filesUnder(dir, name)));
+    else if (entry.isFile()) out.push(name);
+  }
+  return out;
+}
+
+/**
+ * A gzipped ustar archive of one bundle. Modes are set here rather than copied, because the
+ * bundle share reports every file as 0777: scripts get 0755, everything else 0644, owner 0.
+ */
+export async function bundleArchive(dir: string, name: string): Promise<Uint8Array> {
+  const enc = new TextEncoder();
+  const blocks: Uint8Array[] = [];
+  for (const rel of await filesUnder(dir)) {
+    if (enc.encode(rel).length >= 100) throw new Error(`${rel}: path too long for a ustar header`);
+    const file = path.join(dir, rel);
+    const [data, info] = await Promise.all([readFile(file), stat(file)]);
+    const header = new Uint8Array(512);
+    const put = (offset: number, length: number, value: string) => header.set(enc.encode(value).subarray(0, length), offset);
+    const octal = (offset: number, length: number, value: number) => put(offset, length, `${value.toString(8).padStart(length - 1, "0")}\0`);
+    put(0, 100, rel);
+    octal(100, 8, rel.endsWith(".sh") ? 0o755 : 0o644);
+    octal(108, 8, 0);
+    octal(116, 8, 0);
+    octal(124, 12, data.length);
+    octal(136, 12, Math.floor(info.mtimeMs / 1000));
+    put(148, 8, "        ");
+    put(156, 1, "0");
+    put(257, 8, "ustar\u000000");
+    put(345, 155, name);
+    const sum = header.reduce((a, b) => a + b, 0);
+    put(148, 8, `${sum.toString(8).padStart(6, "0")}\0 `);
+    blocks.push(header, data, new Uint8Array((512 - (data.length % 512)) % 512));
+  }
+  blocks.push(new Uint8Array(1024));
+  return Bun.gzipSync(Buffer.concat(blocks));
+}
+
 const json = (data: unknown, cache: string) => Response.json(data, { headers: { "cache-control": cache, ...SECURITY } });
 
 export function serveHosted(port: number, hosts: string[]) {
@@ -68,8 +110,7 @@ export function serveHosted(port: number, hosts: string[]) {
           const dir = bundleDir(url.searchParams.get("dir"));
           await requireBundle(dir);
           const name = path.basename(dir);
-          const tar = Bun.spawn(["tar", "-czf", "-", "-C", BUNDLES, "--", name], { stdin: "ignore", stdout: "pipe", stderr: "ignore" });
-          return new Response(tar.stdout, {
+          return new Response(await bundleArchive(dir, name), {
             headers: { "content-type": "application/gzip", "content-disposition": `attachment; filename="${name}.tar.gz"`, "cache-control": "public, max-age=60", ...SECURITY },
           });
         }

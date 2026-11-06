@@ -111,6 +111,29 @@ FRAMELAB=$PWD evidence/v0.1-rc/injected-s1-reduced/replay.sh   # exit 1, as reco
 `replay.sh` checks `SHA256SUMS` and the pins before starting a node, and refuses a changed
 bundle with exit 2.
 
+## Hosted read-only copy
+
+<https://framelab.ambitiousplant-d2d50100.centralindia.azurecontainerapps.io/> serves the two
+bundles above in the same viewer, read only. Nothing runs there, `.runs/` is never served and
+every write is refused. A link such as
+[`?b=bundles/injected-s1-reduced`](https://framelab.ambitiousplant-d2d50100.centralindia.azurecontainerapps.io/?b=bundles/injected-s1-reduced)
+opens one bundle directly, and Download gives a `.tar.gz` that `replay.sh` replays on your own
+machine.
+
+Publishing makes a bundle public. `scripts/publish-bundle.ts` refuses a bundle unless every file
+matches `SHA256SUMS`, nothing is unlisted, and the export's secret scan comes back clean again:
+
+```sh
+bun scripts/publish-bundle.ts bundles/NAME --dry-run   # checks only
+bun scripts/publish-bundle.ts bundles/NAME             # uploads, prints the share link
+bun scripts/publish-bundle.ts --remove NAME
+```
+
+`deploy/azure/deploy.sh` creates or updates the deployment in resource group `rg-framelab`: a
+Container App that scales to zero, an Azure Files share mounted read-only, and a Basic registry.
+It rolls the app to an image of the current commit. `az group delete -n rg-framelab` removes it
+all.
+
 ## Public devnet
 
 `bun src/cli.ts devnet` is the only command that touches a public network. It first reads chain

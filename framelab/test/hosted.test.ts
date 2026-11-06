@@ -1,5 +1,8 @@
 import { afterAll, expect, test } from "bun:test";
-import { serveHosted } from "../src/ui/hosted.ts";
+import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { bundleArchive, serveHosted } from "../src/ui/hosted.ts";
 
 const port = 18000 + Math.floor(Math.random() * 2000);
 const host = `127.0.0.1:${port}`;
@@ -30,6 +33,26 @@ test("nothing can be started: every write is refused", async () => {
   for (const p of ["/api/run", "/api/shrink", "/api/export", "/api/env/start", "/api/env/stop", "/api/cancel"]) {
     const res = await get(p, { method: "POST", headers: { "x-framelab": "1", "content-type": "application/json" }, body: "{}" });
     expect(res.status).toBe(405);
+  }
+});
+
+test("a downloaded bundle extracts with system tar, byte for byte, with sane modes", async () => {
+  const src = await mkdtemp(path.join(tmpdir(), "framelab-archive-src-"));
+  const files: Record<string, string> = { "replay.sh": "#!/usr/bin/env bash\necho hi\n", "README.md": "x".repeat(1500), "evidence/run1.meta.json": "{}" };
+  await mkdir(path.join(src, "evidence"));
+  for (const [rel, text] of Object.entries(files)) {
+    await writeFile(path.join(src, rel), text);
+    await chmod(path.join(src, rel), 0o777);
+  }
+  const out = await mkdtemp(path.join(tmpdir(), "framelab-archive-out-"));
+  const archive = path.join(out, "b.tar.gz");
+  await writeFile(archive, await bundleArchive(src, "some-bundle"));
+  const proc = Bun.spawn(["tar", "-xzf", archive, "-C", out], { stderr: "pipe" });
+  expect(await proc.exited).toBe(0);
+  for (const [rel, text] of Object.entries(files)) {
+    const file = path.join(out, "some-bundle", rel);
+    expect(await readFile(file, "utf8")).toBe(text);
+    expect((await stat(file)).mode & 0o777).toBe(rel.endsWith(".sh") ? 0o755 : 0o644);
   }
 });
 
