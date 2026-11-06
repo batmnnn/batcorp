@@ -8,6 +8,8 @@ set -euo pipefail
 RG="${FRAMELAB_AZ_RG:-rg-framelab}"
 LOCATION="${FRAMELAB_AZ_LOCATION:-centralindia}"
 APP="${FRAMELAB_AZ_APP:-framelab}"
+# Custom domain, served with a free managed certificate once its DNS records exist. Empty for none.
+DOMAIN="${FRAMELAB_DOMAIN-batcorps.batmnnn.live}"
 ENV_NAME=cae-framelab
 ID_NAME=id-framelab
 SHARE=bundles
@@ -68,6 +70,19 @@ az containerapp env storage set -n "$ENV_NAME" -g "$RG" --storage-name "$SHARE" 
 unset STORAGE_KEY
 ENV_ID="$(az containerapp env show -n "$ENV_NAME" -g "$RG" --query id -o tsv)"
 FQDN="$APP.$(az containerapp env show -n "$ENV_NAME" -g "$RG" --query properties.defaultDomain -o tsv)"
+CERT_ID=""
+CUSTOM_DOMAINS=""
+if [ -n "$DOMAIN" ]; then
+  CERT_ID="$(az containerapp env certificate list -n "$ENV_NAME" -g "$RG" --managed-certificates-only \
+    --query "[?properties.subjectName=='$DOMAIN' && properties.provisioningState=='Succeeded'].id | [0]" -o tsv)"
+fi
+# The app spec below replaces the app's ingress, so an already bound domain has to be restated in it.
+if [ -n "$CERT_ID" ]; then
+  CUSTOM_DOMAINS="      customDomains:
+        - name: $DOMAIN
+          bindingType: SniEnabled
+          certificateId: $CERT_ID"
+fi
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -99,6 +114,7 @@ properties:
       targetPort: 8080
       transport: http
       allowInsecure: false
+$CUSTOM_DOMAINS
     registries:
       - server: $ACR.azurecr.io
         identity: $ID_RES
@@ -111,7 +127,7 @@ properties:
           memory: 0.5Gi
         env:
           - name: FRAMELAB_PUBLIC_HOSTS
-            value: $FQDN
+            value: $FQDN${DOMAIN:+,$DOMAIN}
         volumeMounts:
           - volumeName: bundles
             mountPath: /app/bundles
@@ -138,10 +154,30 @@ else
   az containerapp create -n "$APP" -g "$RG" --yaml "$STAGE/app.yaml" -o none
 fi
 
+if [ -n "$DOMAIN" ] && [ -z "$CERT_ID" ]; then
+  step "custom domain $DOMAIN"
+  VERIFY="$(az containerapp show -n "$APP" -g "$RG" --query properties.customDomainVerificationId -o tsv)"
+  CNAME="$(dig +short CNAME "$DOMAIN" @1.1.1.1 | sed 's/\.$//')"
+  TXT="$(dig +short TXT "asuid.$DOMAIN" @1.1.1.1 | tr -d '"')"
+  if [ "$CNAME" = "$FQDN" ] && [ "$TXT" = "$VERIFY" ]; then
+    if [ -z "$(az containerapp hostname list -n "$APP" -g "$RG" --query "[?name=='$DOMAIN'].name" -o tsv)" ]; then
+      az containerapp hostname add -n "$APP" -g "$RG" --hostname "$DOMAIN" -o none
+    fi
+    az containerapp hostname bind -n "$APP" -g "$RG" --hostname "$DOMAIN" --environment "$ENV_NAME" --validation-method CNAME -o none
+  else
+    echo "DNS for $DOMAIN is not in place yet. Add these two records, then rerun this script:"
+    echo "  CNAME  $DOMAIN  ->  $FQDN"
+    echo "  TXT    asuid.$DOMAIN  =  $VERIFY"
+  fi
+fi
+
 step "live"
 for attempt in $(seq 1 30); do
   if curl -fsS -o /dev/null "https://$FQDN/healthz"; then
     echo "https://$FQDN/"
+    if [ -n "$DOMAIN" ] && curl -fsS -o /dev/null --max-time 15 "https://$DOMAIN/healthz" 2>/dev/null; then
+      echo "https://$DOMAIN/"
+    fi
     exit 0
   fi
   sleep 5

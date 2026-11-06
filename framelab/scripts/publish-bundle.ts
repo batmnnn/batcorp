@@ -113,7 +113,7 @@ async function target() {
   const account = await az(["storage", "account", "list", "-g", RG, "--query", "[0].name", "-o", "tsv"]);
   if (!account) throw new Error(`no storage account in ${RG}; run deploy/azure/deploy.sh first`);
   const key = await az(["storage", "account", "keys", "list", "-g", RG, "-n", account, "--query", "[0].value", "-o", "tsv"]);
-  const fqdn = await az(["containerapp", "show", "-g", RG, "-n", APP, "--query", "properties.configuration.ingress.fqdn", "-o", "tsv"]);
+  const fqdn = await az(["containerapp", "show", "-g", RG, "-n", APP, "--query", "properties.configuration.ingress.[customDomains[0].name, fqdn] | [?@] | [0]", "-o", "tsv"]);
   return { env: { AZURE_STORAGE_ACCOUNT: account, AZURE_STORAGE_KEY: key }, fqdn };
 }
 
