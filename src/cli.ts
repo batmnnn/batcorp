@@ -442,6 +442,37 @@ async function cmdEnv(argv: string[]): Promise<number> {
   }
 }
 
+/** The one command that touches a public network: one qualifying frame tx (src/devnet/submit.ts). */
+async function cmdDevnet(argv: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args: argv,
+    options: { "dry-run": { type: "boolean", default: false }, again: { type: "boolean", default: false }, "key-file": { type: "string" }, out: { type: "string" } },
+  });
+  const { DEFAULT_KEY_FILE, PUBLIC_DEVNET, earlierInclusions, submitQualifyingTx } = await import("./devnet/submit.ts");
+  const runsDir = path.join(FRAMELAB_ROOT, ".runs");
+  if (!values["dry-run"] && !values.again) {
+    const earlier = await earlierInclusions(runsDir, PUBLIC_DEVNET);
+    if (earlier.length > 0) {
+      console.log(`FrameLab already has a frame tx on chain on this network (${earlier[0]}); pass --again to send another`);
+      return 2;
+    }
+  }
+  const outDir = path.resolve(values.out ?? path.join(runsDir, `devnet-${Date.now()}`));
+  console.error(`PUBLIC NETWORK ${PUBLIC_DEVNET.name}, chain ${PUBLIC_DEVNET.chainId} (${PUBLIC_DEVNET.executionRpc})${values["dry-run"] ? ": dry run, nothing will be sent" : ""}`);
+  const r = await submitQualifyingTx({
+    target: PUBLIC_DEVNET,
+    outDir,
+    framelabRoot: FRAMELAB_ROOT,
+    keyFile: values["key-file"] ?? DEFAULT_KEY_FILE,
+    dryRun: values["dry-run"],
+    maxHeadAgeMs: 60_000,
+    inclusionTimeoutMs: 180_000,
+    log: (line) => console.error(line),
+  });
+  console.log(`${r.summary} -> ${outDir}`);
+  return r.exit;
+}
+
 async function cmdServe(argv: string[]): Promise<number> {
   const { values } = parseArgs({ args: argv, options: { port: { type: "string", default: "4173" } } });
   const { serve } = await import("./ui/server.ts");
@@ -457,6 +488,7 @@ const commands: Record<string, (argv: string[]) => Promise<number>> = {
   export: cmdExport,
   "check-pins": cmdCheckPins,
   compare: cmdCompare,
+  devnet: cmdDevnet,
   serve: cmdServe,
 };
 const handler = command ? commands[command] : undefined;

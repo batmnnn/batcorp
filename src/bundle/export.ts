@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { DEFAULT_KEY_FILE } from "../devnet/submit.ts";
 import { deriveActor, FUNDER_PRIVATE_KEY } from "../env/actors.ts";
 import { ETHREX_PIN, SIDECAR_PIN, VENDOR_DIR } from "../env/pins.ts";
 import { RELAYER_KEY, type RunMeta } from "../runner/run.ts";
@@ -187,6 +188,7 @@ export async function exportBundle(opts: ExportOptions): Promise<{ manifest: Bun
   const known: KnownSecret[] = [
     ...(await Promise.all((await findFiles(opts.srcDir, "jwt.hex")).map(async (f) => ({ label: `engine JWT key ${path.relative(opts.srcDir, f)}`, value: (await readFile(f, "utf8")).trim() })))),
     ...secretsFromEnv(opts.env ?? process.env, publicTestKeys([original])),
+    ...(await readFile(DEFAULT_KEY_FILE, "utf8").then((k) => [{ label: "devnet throwaway key", value: k.trim() }], () => [])),
   ];
   const manifestText = JSON.stringify(manifest, null, 2);
   const findings: ScanFinding[] = [];

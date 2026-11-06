@@ -56,6 +56,8 @@ export interface SidecarOptions {
   relayerPrivateKey: Hex;
   bundleIntervalMs: number;
   ttlSeconds: number;
+  /** Runs relay on demand ("manual"); `auto` relays on its own, as the public devnet does. */
+  bundlingMode?: "manual" | "auto";
   readyTimeoutMs?: number;
   sink?: RpcSink;
 }
@@ -108,7 +110,7 @@ export async function startSidecar(opts: SidecarOptions): Promise<SidecarHandle>
       "--api.address", "127.0.0.1",
       "--api.port", String(opts.apiPort),
       "--api.wsPort", String(opts.apiPort),
-      "--executor.bundlingMode", "manual",
+      "--executor.bundlingMode", opts.bundlingMode ?? "manual",
       "--explorer.enable",
     ],
     {
