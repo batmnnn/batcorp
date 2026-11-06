@@ -220,11 +220,31 @@ exit $code
 `;
 }
 
+interface ReductionSummary {
+  claim: string;
+  target: { assertion_id: string; verdict: string; tx_role: string; rule_ref: string };
+  reduced: { hash: string } | null;
+  final_confirmation: { outcome: string; reasons: string[] } | null;
+  pruned_expectations?: string[];
+}
+
+function reductionSection(r: ReductionSummary): string {
+  const lines = [`Shrink target: \`${r.target.assertion_id}\` ${r.target.verdict} on \`${r.target.tx_role}\` under \`${r.target.rule_ref}\`.`, "", r.claim];
+  if (r.reduced && r.final_confirmation) {
+    lines.push("", `Reduced case \`scenario.min.yaml\` (hash \`${r.reduced.hash.slice(0, 12)}…\`), final confirmation on two fresh runs: ${r.final_confirmation.outcome}.`);
+    for (const reason of r.final_confirmation.reasons) lines.push(`- ${reason}`);
+    if (r.pruned_expectations?.length) {
+      lines.push("", `Removed from the reduced case because their preconditions no longer hold there: ${r.pruned_expectations.join(", ")}. No expected fate was edited.`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 function readme(o: {
   original: ScenarioV1;
   replayFile: string;
   verdicts: { overall: string; exit_code: number; runs: Array<{ assertions: Array<{ assertion_id: string; verdict: string; expected: string; observed: string; rule_ref: string }> }>; sidecar_build: { label: string } };
-  reduction: { claim: string; target: { assertion_id: string; verdict: string; tx_role: string; rule_ref: string } } | null;
+  reduction: ReductionSummary | null;
   injected: { file: string; sha256: string } | undefined;
   expectedExit: number;
   commit: string;
@@ -236,13 +256,13 @@ function readme(o: {
     : "";
   return `# FrameLab bundle: ${o.original.id}
 ${injectedNote}
-Overall: **${o.verdicts.overall}** (exit ${o.verdicts.exit_code}) on sidecar build \`${o.verdicts.sidecar_build.label}\`, two fresh runs.
+Original scenario \`${o.original.id}\`: **${o.verdicts.overall}** (exit ${o.verdicts.exit_code}) on sidecar build \`${o.verdicts.sidecar_build.label}\`, two fresh runs.
 
 | Assertion | Rule | Expected | Observed | Verdict |
 |---|---|---|---|---|
 ${rows}
 
-${o.reduction ? `Shrink target: \`${o.reduction.target.assertion_id}\` ${o.reduction.target.verdict} on \`${o.reduction.target.tx_role}\` under \`${o.reduction.target.rule_ref}\`.\n\n${o.reduction.claim}\n` : "No shrink ran for this bundle; there is no scenario.min.yaml.\n"}
+${o.reduction ? reductionSection(o.reduction) : "No shrink ran for this bundle; there is no scenario.min.yaml.\n"}
 ## Replay
 
 Prerequisites: macOS or Linux on arm64, Docker, Bun 1.3, a FrameLab checkout (bundle made at \`${o.commit}\`) with \`../vendor/sidecar\` at \`${o.nodePin.sidecar.commit}\`, and the local ethrex image \`${o.nodePin.ethrex.image}\` built from \`${o.nodePin.ethrex.pinned_commit}\` (recorded image ID \`${o.nodePin.ethrex.image_id}\`).
