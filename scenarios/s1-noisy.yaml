@@ -13,13 +13,13 @@ genesis:
   sha256: 5fe93acb7674db5d809aae4d66bff742121ed718bcddd327efcb8c1a9e631fb4
   chain_id: 9
 actors:
-  - { role: payer, fund_wei: "1000000000000000000" }
+  - { role: payer, fund_wei: "10000000000000000000" }
   - { role: control, fund_wei: "1000000000000000000" }
-  - { role: sink }
+  - { role: sink, fund_wei: "1" }
   - { role: noise-a, fund_wei: "1000000000000000000" }
   - { role: noise-b, fund_wei: "1000000000000000000" }
 steps:
-  - { id: fund, group: setup, action: fund, actors: [payer, control] }
+  - { id: fund, group: setup, action: fund, actors: [payer, control, sink] }
   - { id: fund-noise, action: fund, actors: [noise-a, noise-b] }
   - { id: cp-setup, group: setup, action: advance-to-checkpoint, checkpoint_id: cp-setup, depends_on: [fund] }
   - { id: noise-a-k1, action: submit, tx_role: noise-a1, actor: noise-a, nonce_key: "1", to: sink, value_wei: "1", depends_on: [fund-noise, cp-setup] }

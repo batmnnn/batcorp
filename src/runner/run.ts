@@ -18,7 +18,12 @@ import { APPROVE_SCOPE, FRAME_MODE, SIG_SCHEME, encodeRawFrameTx, signFrameTx, t
 export const RELAYER_KEY: Hex = "0x39725efee3fb28614de3bacaffe4cc4bd8c436257e2c8bb887c4b5c4be45e76d";
 const MAX_FEE = 10_000_000_000n;
 const TIP = 1_000_000_000n;
-const TRANSFER_GAS = 21_000n;
+/**
+ * Frame-tx fee cap. A normal transfer's unused fee (max fee minus effective price, times gas used)
+ * stays with the sender, so a drain leaves slightly more than asked. A high frame cap keeps that
+ * slack well under 1% of one frame tx's max cost.
+ */
+const FRAME_MAX_FEE = 500_000_000_000n;
 /** enforceBalances orders by millisecond admission time; keep admissions apart so order is unambiguous. */
 const ADMISSION_GAP_MS = 60;
 
@@ -146,7 +151,10 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
       nextNonce.set(address, n + 1n);
       return n;
     };
-    const sendTransfer = async (step: Step, from: Actor, to: string, value: bigint) => {
+    // New-account creation costs state gas on this fork (about 207k for a fresh address, about 12k otherwise).
+    const transferGas = async (from: string, to: string) =>
+      BigInt(await eth.call<Hex>("eth_estimateGas", [{ from, to, value: "0x1" }, "latest"]));
+    const sendTransfer = async (step: Step, from: Actor, to: string, value: bigint, gas?: bigint) => {
       const account = privateKeyToAccount(from.privateKey);
       const raw = await account.signTransaction({
         type: "eip1559",
@@ -154,7 +162,7 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
         nonce: Number(await takeNonce(from.address)),
         to: to as Hex,
         value,
-        gas: TRANSFER_GAS,
+        gas: gas ?? (await transferGas(from.address, to)),
         maxFeePerGas: MAX_FEE,
         maxPriorityFeePerGas: TIP,
       });
@@ -212,6 +220,8 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
           const s = step as TransferStep;
           const from = actors.get(s.actor)!;
           let value: bigint;
+          const to = actors.get(s.to)!.address;
+          const gas = await transferGas(from.address, to);
           if ("wei" in s.amount) {
             value = BigInt(s.amount.wei);
           } else {
@@ -222,13 +232,13 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
             }
             const balance = BigInt(await eth.call<Hex>("eth_getBalance", [from.address, "latest"]));
             const leave = (BigInt(ref.max_cost) * BigInt(Math.round(s.amount.leave_max_cost_multiple * 1000))) / 1000n;
-            value = balance - leave - TRANSFER_GAS * MAX_FEE;
+            value = balance - leave - gas * MAX_FEE;
             if (value <= 0n) {
               problems.push({ kind: "fixture", detail: `${s.id}: ${s.actor} balance ${balance} cannot leave ${leave}` });
               break;
             }
           }
-          await sendTransfer(step, from, actors.get(s.to)!.address, value);
+          await sendTransfer(step, from, to, value, gas);
           break;
         }
         case "submit": {
@@ -246,7 +256,7 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
               { mode: FRAME_MODE.SENDER, flags: APPROVE_SCOPE.NONE, target: s.to ? (actors.get(s.to)!.address as Hex) : actor.address, limits: { execution: 50_000n, state: 0n }, value: BigInt(s.value_wei ?? "0"), data: "0x" },
             ],
             signatures: [{ scheme: SIG_SCHEME.SECP256K1, signer: "0x", msg: "0x", signature: "0x" }],
-            fees: { maxPriorityFeePerGas: TIP, maxFeePerGas: MAX_FEE, maxFeePerBlobGas: 0n },
+            fees: { maxPriorityFeePerGas: TIP, maxFeePerGas: FRAME_MAX_FEE, maxFeePerBlobGas: 0n },
             blobVersionedHashes: [],
             recentRootReferences: [],
           };

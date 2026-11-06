@@ -68,6 +68,8 @@ export async function startEthrex(opts: EthrexOptions): Promise<EthrexHandle> {
     "--http.api", "eth,net,web3,ethrex,debug",
     "--authrpc.addr", "0.0.0.0", "--authrpc.port", "8551",
     "--authrpc.jwtsecret", "/secrets/jwt.hex",
+    // The default snap mode answers every forkchoiceUpdated with SYNCING (fork_choice.rs).
+    "--syncmode", "full",
   ]);
 
   const rpcUrl = `http://127.0.0.1:${opts.httpPort}`;

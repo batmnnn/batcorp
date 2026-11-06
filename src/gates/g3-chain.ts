@@ -41,7 +41,8 @@ async function oneRun(run: number): Promise<ChainRun> {
       nonce: 0,
       to: recipient,
       value: 10n ** 18n,
-      gas: 21_000n,
+      // Creating the recipient costs state gas on this fork; a fixed 21000 runs out of gas.
+      gas: BigInt(await node.rpc.call<Hex>("eth_estimateGas", [{ from: funder.address, to: recipient, value: "0x1" }, "latest"])),
       maxFeePerGas: 10_000_000_000n,
       maxPriorityFeePerGas: 1_000_000_000n,
     });
