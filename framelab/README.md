@@ -123,6 +123,13 @@ be called. The throwaway key lives in `~/.framelab/`, outside the checkout, and 
 treats it as a secret. `--dry-run` sends nothing. CI runs the same code path against the local
 stack (`src/gates/devnet-local.ts`).
 
+**Result (2026-11-06, 07:06 UTC):** frame tx
+[`0xd0585cf5…0814`](https://explorer.altmempool.wtf/tx/0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814?node=https%3A%2F%2Faltmempool.forshtat.com%2Frpc)
+went from admitted by the public sidecar to `OnChain` in block 378. The ethrex receipt shows type
+`0x6`, status `0x1` and 26,102 gas, and the explorer's admission report shows every rule passed.
+The devnet can be reset and the explorer keeps history in memory only, so the record, the raw RPC
+log and a screenshot are kept in [`evidence/devnet-2026-11-06/`](evidence/devnet-2026-11-06/).
+
 ## Safety and limits
 
 - Checks run only on a disposable local chain, with debug RPC bound to 127.0.0.1.

@@ -1,0 +1,380 @@
+{
+  "target": {
+    "name": "public alt-mempool devnet",
+    "execution_rpc": "https://altmempool.forshtat.com",
+    "sidecar_rpc": "https://altmempool.forshtat.com/rpc",
+    "chain_id": 1337
+  },
+  "started_at": "2026-11-06T07:06:00.005Z",
+  "dry_run": false,
+  "preflight": {
+    "chain_id": 1337,
+    "sidecar_chain_id": 1337,
+    "client_version": "ethrex/v23.0.0-eip8141-tracer-9aa3645d795945c64400f41a70aace0edfa7f383/x86_64-unknown-linux-gnu/rustc-v1.93.1",
+    "sidecar": {
+      "protocolVersion": 1,
+      "chainId": 1337,
+      "version": "v4.1.1",
+      "commit": "",
+      "bundlingMode": "auto",
+      "p2pEnabled": true,
+      "latestSeq": 339,
+      "oldestSeq": 1,
+      "historyCapacity": 10000,
+      "bootId": "ef0fccbaca0c428c",
+      "minInclusionDenominator": 10,
+      "throttlingSlack": 10,
+      "banSlack": 50
+    },
+    "head": {
+      "number": "371",
+      "hash": "0xf44d67556b3c06338fc4d6c0b0fbb32b05089bb6a6920e64236945c31ac8160c",
+      "age_s": 2,
+      "base_fee": "7"
+    }
+  },
+  "sender": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+  "funding": {
+    "tx_hash": "0x8172b711f07a8c78f557ed7099755d526c9b6ebc77baacd6bd042fc3ea1e31f1",
+    "from": "0x5544596212F91984C986A919C8026DF0576816f9",
+    "value_wei": "10000000000000000",
+    "gas": "248869",
+    "receipt": {
+      "blockHash": "0x164b17baa44d2d7000cbf43dbdc085158e795425157fddfbd13fd0262b70f70a",
+      "blockNumber": "0x174",
+      "contractAddress": null,
+      "cumulativeGasUsed": "0x31f38",
+      "effectiveGasPrice": "0x3b9aca07",
+      "from": "0x5544596212f91984c986a919c8026df0576816f9",
+      "gasUsed": "0x31f38",
+      "logs": [
+        {
+          "address": "0xfffffffffffffffffffffffffffffffffffffffe",
+          "blockHash": "0x164b17baa44d2d7000cbf43dbdc085158e795425157fddfbd13fd0262b70f70a",
+          "blockNumber": "0x174",
+          "blockTimestamp": "0x6aed7c5e",
+          "data": "0x000000000000000000000000000000000000000000000000002386f26fc10000",
+          "logIndex": "0x0",
+          "removed": false,
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000005544596212f91984c986a919c8026df0576816f9",
+            "0x000000000000000000000000d39e89114f035fb8266a374d7f33e26c4beb1509"
+          ],
+          "transactionHash": "0x8172b711f07a8c78f557ed7099755d526c9b6ebc77baacd6bd042fc3ea1e31f1",
+          "transactionIndex": "0x0"
+        }
+      ],
+      "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000008000000000000000000000008000000000000000000000002000000002000000000000000000000000000000000200010000000001000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000002000000000008000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000",
+      "status": "0x1",
+      "to": "0xd39e89114f035fb8266a374d7f33e26c4beb1509",
+      "transactionHash": "0x8172b711f07a8c78f557ed7099755d526c9b6ebc77baacd6bd042fc3ea1e31f1",
+      "transactionIndex": "0x0",
+      "type": "0x2"
+    }
+  },
+  "frame_tx": {
+    "nonce_key": 0,
+    "nonce_seq": "0",
+    "fees": {
+      "maxFeePerGas": "1000000014",
+      "maxPriorityFeePerGas": "1000000000"
+    },
+    "raw": "0x06f89e820539c1808094d39e89114f035fb8266a374d7f33e26c4beb1509eaca010380c4827530808080de028094d39e89114f035fb8266a374d7f33e26c4beb1509c482c350800180f848f846018080b841017a44b25fdbea37f7d7711676a20ff4f24f06ba2a344dd3527721dc167bb5cd2d5658e4be372f2ac3df107ea9dc4de20ccf7fbcf23a1f67b2920a29c40330085ccb843b9aca00843b9aca0e80c0c0",
+    "simulation": {
+      "canonicalMempoolValid": true,
+      "canonicalMempoolViolation": null,
+      "erc7562Trace": null,
+      "erc7562TraceError": null,
+      "executionError": null,
+      "executionStatus": "success",
+      "frames": [
+        {
+          "gasUsed": "0x64",
+          "succeeded": true
+        },
+        {
+          "gasUsed": "0x64",
+          "succeeded": true
+        }
+      ],
+      "gasUsed": "0x65f6",
+      "maxCost": "0x5d87d68b93f4",
+      "payer": "0xd39e89114f035fb8266a374d7f33e26c4beb1509",
+      "prefixShape": "SelfVerify"
+    },
+    "hash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+    "statuses": [
+      {
+        "at": "2026-11-06T07:06:10.737Z",
+        "status": "New"
+      },
+      {
+        "at": "2026-11-06T07:06:17.812Z",
+        "status": "Submitted"
+      },
+      {
+        "at": "2026-11-06T07:06:49.037Z",
+        "status": "OnChain"
+      }
+    ],
+    "receipt": {
+      "cumulativeGasUsed": "0x50db0",
+      "payer": "0xd39e89114f035fb8266a374d7f33e26c4beb1509",
+      "blockNumber": "0x17a",
+      "status": "success",
+      "frameReceipts": [
+        {
+          "status": "success",
+          "gasUsed": {
+            "execution": "0x64",
+            "state": "0x0"
+          },
+          "logs": []
+        },
+        {
+          "status": "success",
+          "gasUsed": {
+            "execution": "0x64",
+            "state": "0x0"
+          },
+          "logs": []
+        }
+      ]
+    },
+    "explorer": {
+      "hash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+      "entry": {
+        "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+        "sender": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+        "payer": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+        "nonce": "0x0",
+        "nonceKeys": [
+          "0x0"
+        ],
+        "status": "OnChain",
+        "frames": 2,
+        "maxFeePerGas": "0x3b9aca0e",
+        "submittedTime": 1793948769838,
+        "lastUpdatedTime": 1793948805976,
+        "source": "rpc",
+        "tx": {
+          "chainId": "0x539",
+          "nonceKeys": [
+            "0x0"
+          ],
+          "nonceSeq": "0x0",
+          "sender": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+          "frames": [
+            {
+              "mode": 1,
+              "flags": 3,
+              "target": null,
+              "limits": {
+                "execution": "0x7530",
+                "state": "0x0"
+              },
+              "value": "0x0",
+              "data": "0x"
+            },
+            {
+              "mode": 2,
+              "flags": 0,
+              "target": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+              "limits": {
+                "execution": "0xc350",
+                "state": "0x0"
+              },
+              "value": "0x1",
+              "data": "0x"
+            }
+          ],
+          "signatures": [
+            {
+              "scheme": 1,
+              "signer": "0x",
+              "msg": "0x",
+              "signature": "0x017a44b25fdbea37f7d7711676a20ff4f24f06ba2a344dd3527721dc167bb5cd2d5658e4be372f2ac3df107ea9dc4de20ccf7fbcf23a1f67b2920a29c40330085c"
+            }
+          ],
+          "fees": {
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "maxFeePerGas": "0x3b9aca0e",
+            "maxFeePerBlobGas": "0x0"
+          },
+          "blobVersionedHashes": [],
+          "recentRootReferences": []
+        },
+        "transaction": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814"
+      },
+      "admission": {
+        "id": 137,
+        "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+        "sender": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+        "nonce": "0x0",
+        "nonceKeys": [
+          "0x0"
+        ],
+        "at": 1793948769818,
+        "source": "rpc",
+        "outcome": "included",
+        "checks": [
+          {
+            "rule": "gas-limit",
+            "verdict": "pass"
+          },
+          {
+            "rule": "recent-root",
+            "verdict": "pass"
+          },
+          {
+            "rule": "prefix",
+            "verdict": "pass"
+          },
+          {
+            "rule": "structure",
+            "verdict": "pass"
+          },
+          {
+            "rule": "signature",
+            "verdict": "pass"
+          },
+          {
+            "rule": "simulation",
+            "verdict": "pass"
+          },
+          {
+            "rule": "trace-alignment",
+            "verdict": "pass"
+          },
+          {
+            "rule": "OP-061",
+            "verdict": "pass"
+          },
+          {
+            "rule": "execution",
+            "verdict": "pass"
+          },
+          {
+            "rule": "trace-alignment",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "out-of-gas",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "OP-011",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "create",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "storage",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "COD-010",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "entrypoint-access",
+            "frameIndex": 0,
+            "entity": "payer",
+            "verdict": "pass"
+          },
+          {
+            "rule": "mempool",
+            "verdict": "pass"
+          }
+        ],
+        "frames": [
+          {
+            "mode": 1,
+            "flags": 3,
+            "target": null,
+            "limits": {
+              "execution": "0x7530",
+              "state": "0x0"
+            },
+            "value": "0x0",
+            "data": "0x"
+          },
+          {
+            "mode": 2,
+            "flags": 0,
+            "target": "0xD39e89114F035fB8266A374d7f33E26c4BeB1509",
+            "limits": {
+              "execution": "0xc350",
+              "state": "0x0"
+            },
+            "value": "0x1",
+            "data": "0x"
+          }
+        ],
+        "frameStatuses": [
+          "success",
+          "success"
+        ],
+        "includer": "0x5544596212f91984c986a919c8026df0576816f9"
+      },
+      "events": [
+        {
+          "seq": 346,
+          "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+          "at": 1793948769897,
+          "kind": "admitted",
+          "status": "New"
+        },
+        {
+          "seq": 349,
+          "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+          "at": 1793948776041,
+          "kind": "statusChanged",
+          "status": "Submitted"
+        },
+        {
+          "seq": 353,
+          "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+          "at": 1793948786142,
+          "kind": "statusChanged",
+          "status": "Submitted"
+        },
+        {
+          "seq": 358,
+          "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+          "at": 1793948796168,
+          "kind": "statusChanged",
+          "status": "Submitted"
+        },
+        {
+          "seq": 365,
+          "txHash": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814",
+          "at": 1793948805977,
+          "kind": "included",
+          "status": "OnChain"
+        }
+      ]
+    },
+    "explorer_url": "https://explorer.altmempool.wtf/tx/0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814?node=https%3A%2F%2Faltmempool.forshtat.com%2Frpc"
+  },
+  "result": {
+    "exit": 0,
+    "summary": "0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814 included in block 378 (OnChain): https://explorer.altmempool.wtf/tx/0xd0585cf5ee9e6a599d206c6f2acdcafc62e5e73e6c65cc67acaf4877c0eb0814?node=https%3A%2F%2Faltmempool.forshtat.com%2Frpc"
+  },
+  "finished_at": "2026-11-06T07:06:50.057Z"
+}
