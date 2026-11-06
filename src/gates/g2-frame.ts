@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Hex } from "viem";
-import { deriveActor, funderActor } from "../env/actors.ts";
+import { privateKeyToAccount } from "viem/accounts";
+import { funderActor } from "../env/actors.ts";
 import { ethrexLogs, startEthrex, stopEthrex } from "../env/ethrex.ts";
 import { ensureSidecarBuild, readObserve, startSidecar, stopSidecar, type SidecarHandle } from "../env/sidecar.ts";
 import { EngineStepper } from "../env/stepper.ts";
@@ -44,7 +45,8 @@ try {
   const info = await sidecar.rpc.call<{ bootId: string; latestSeq: number; oldestSeq: number }>("skandha_explorer_info");
 
   const sender = funderActor();
-  const recipient = deriveActor("g2", "recipient").address;
+  // An existing genesis account: paying a fresh address needs state gas, and the helper's frames set state: 0.
+  const recipient = privateKeyToAccount(RELAYER_KEY).address;
   const tx = await signFrameTx(
     buildUnsignedFrameTx(0n, { maxFeePerGas: 10_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n }, sender.privateKey, node.chainId, recipient),
     sender.privateKey
