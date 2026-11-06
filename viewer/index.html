@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrameLab</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6f3; --panel: #ffffff; --text: #1b1b1a; --muted: #5a5a55; --border: #d7d6d0; --ring: #2457c5;
+  --pass-bg: #e2f2e5; --pass-fg: #145523;
+  --inv-bg: #e1edf9; --inv-fg: #0b4a83;
+  --fail-bg: #fbe3e3; --fail-fg: #8a1c1c;
+  --inc-bg: #e9e9e6; --inc-fg: #3d3d3a;
+  --amber-bg: #fcefd2; --amber-fg: #774800;
+  --accent: #2457c5; --accent-fg: #ffffff;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 6px; --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131312; --panel: #1c1c1a; --text: #ecebe6; --muted: #a8a7a0; --border: #3a3935; --ring: #8fb1ff;
+    --pass-bg: #16301c; --pass-fg: #9fe3b0; --inv-bg: #12283f; --inv-fg: #a9d1ff;
+    --fail-bg: #3a1616; --fail-fg: #ffb3b3; --inc-bg: #2a2a28; --inc-fg: #cfcec8;
+    --amber-bg: #392a0b; --amber-fg: #ffd68c; --accent: #8fb1ff; --accent-fg: #0d1a33;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 140px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+code, .mono, pre { font-family: var(--mono); font-size: 12.5px; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
+h2 { font-size: 18px; } h3 { font-size: 15px; } h4 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: var(--s4); }
+p { margin: var(--s2) 0; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); padding: var(--s3) var(--s5); border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+.brand { font-weight: 650; font-size: 16px; }
+.brand span { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: var(--s2); }
+.states { display: flex; flex-wrap: wrap; gap: var(--s1); list-style: none; margin: 0; padding: 0; }
+.states li { padding: 2px var(--s2); border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+.states li[aria-current="step"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+.states li.unbuilt { border-style: dashed; }
+
+main { padding: var(--s5); max-width: 1500px; margin: 0 auto; display: grid; gap: var(--s4); }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: var(--s4) var(--s5); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+
+.btn { min-height: 40px; padding: 0 var(--s4); border-radius: var(--r); border: 1px solid var(--border); background: var(--panel); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--text); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.linkish { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; min-height: 0; }
+
+.pill { display: inline-block; padding: 1px var(--s2); border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.v-PASS { background: var(--pass-bg); color: var(--pass-fg); }
+.v-EXPECTED_INVALIDATION { background: var(--inv-bg); color: var(--inv-fg); }
+.v-STALE_KEPT, .v-WRONGLY_EVICTED, .v-ASSERTION_MISMATCH, .v-FAIL { background: var(--fail-bg); color: var(--fail-fg); }
+.v-INCONCLUSIVE { background: var(--inc-bg); color: var(--inc-fg); }
+.v-SPEC_DIVERGENCE { background: var(--amber-bg); color: var(--amber-fg); }
+
+.banner { padding: var(--s2) var(--s3); border-radius: var(--r); font-weight: 600; }
+.banner.amber { background: var(--amber-bg); color: var(--amber-fg); }
+.banner.grey { background: var(--inc-bg); color: var(--inc-fg); }
+.banner.red { background: var(--fail-bg); color: var(--fail-fg); }
+
+.summary.s-pass { border-left: 4px solid var(--pass-fg); }
+.summary.s-fail { border-left: 4px solid var(--fail-fg); }
+.summary.s-inconclusive { border-left: 4px solid var(--inc-fg); background: color-mix(in srgb, var(--inc-bg) 45%, var(--panel)); }
+.facts { margin: var(--s2) 0 0; padding-left: var(--s5); }
+.facts li { margin: 2px 0; }
+
+dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--s4); margin: var(--s2) 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: var(--s4); align-items: start; }
+@media (max-width: 1000px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+.tabs { display: flex; gap: var(--s1); margin-bottom: var(--s3); }
+.tab { min-height: 36px; padding: 0 var(--s3); border: 1px solid var(--border); background: var(--panel); border-radius: var(--r); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.grid-wrap { overflow-x: auto; }
+table.timeline { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+table.timeline th, table.timeline td { border-bottom: 1px solid var(--border); padding: var(--s1); text-align: left; vertical-align: top; }
+table.timeline thead th { font-weight: 600; font-size: 12px; min-width: 92px; position: sticky; top: 0; background: var(--panel); }
+table.timeline thead th .sub { display: block; font-weight: 400; color: var(--muted); }
+table.timeline thead th.cp { background: color-mix(in srgb, var(--inv-bg) 35%, var(--panel)); }
+table.timeline tbody th { position: sticky; left: 0; background: var(--panel); font-family: var(--mono); font-size: 12.5px; white-space: nowrap; padding-right: var(--s3); }
+.cell { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); text-align: left; padding: var(--s1) var(--s2); cursor: pointer; display: grid; gap: 1px; }
+.cell .fate { font-family: var(--mono); font-size: 12px; }
+.cell .aid { font-size: 11px; font-weight: 700; }
+.cell .pill, .cell .vlabel { white-space: nowrap; }
+table.timeline td { min-width: 150px; }
+.cell[aria-pressed="true"] { outline: 2px solid var(--ring); outline-offset: 1px; }
+.cell.empty { border-style: dashed; color: var(--muted); }
+.cell.v-PASS, .cell.v-EXPECTED_INVALIDATION, .cell.v-STALE_KEPT, .cell.v-WRONGLY_EVICTED, .cell.v-ASSERTION_MISMATCH, .cell.v-INCONCLUSIVE { border-color: transparent; }
+
+.detail { position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; }
+.ba { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s2); align-items: center; margin: var(--s3) 0; }
+.ba > div { border: 1px solid var(--border); border-radius: var(--r); padding: var(--s2); }
+.ba .label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+ul.pre { list-style: none; padding: 0; margin: var(--s2) 0; display: grid; gap: var(--s1); }
+ul.pre li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s1); }
+.ok { color: var(--pass-fg); font-weight: 700; } .no { color: var(--fail-fg); font-weight: 700; } .unk { color: var(--muted); font-weight: 700; }
+blockquote { margin: var(--s2) 0; padding: var(--s2) var(--s3); border-left: 3px solid var(--border); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); }
+blockquote cite { display: block; margin-top: var(--s1); font-style: normal; font-size: 12px; color: var(--muted); }
+pre { margin: var(--s2) 0; padding: var(--s3); background: color-mix(in srgb, var(--bg) 70%, var(--panel)); border: 1px solid var(--border); border-radius: var(--r); overflow: auto; max-height: 360px; }
+details > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s3); margin: var(--s3) 0; }
+.stat { border: 1px solid var(--border); border-radius: var(--r); padding: var(--s3); }
+.stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12.5px; }
+.big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: var(--s2); vertical-align: middle; }
+@media (prefers-reduced-motion: no-preference) { .live::before { animation: pulse 1.2s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: .25; } }
+.log { max-height: 220px; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.chip { border: 1px solid var(--border); border-radius: 999px; padding: 0 var(--s2); font-family: var(--mono); font-size: 12px; }
+table.plain { border-collapse: collapse; }
+table.plain th, table.plain td { padding: 2px var(--s3) 2px 0; text-align: left; font-variant-numeric: tabular-nums; }
+table.plain th { color: var(--muted); font-weight: 500; }
+.results { display: grid; gap: var(--s1); margin-top: var(--s2); }
+.result { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: var(--s3); align-items: center; text-align: left; min-height: 44px; padding: var(--s2) var(--s3); border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); cursor: pointer; }
+.result:hover { border-color: var(--text); }
+.kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.field { display: grid; gap: var(--s1); }
+.field select { min-height: 40px; padding: 0 var(--s2); border-radius: var(--r); border: 1px solid var(--border); background: var(--panel); min-width: 280px; }
+.skeleton { height: 12px; border-radius: 4px; background: var(--inc-bg); margin: var(--s2) 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">FrameLab<span>release check for alt-mempool nodes · local only</span></div>
+  <ol class="states" id="states" aria-label="Workbench state"></ol>
+</header>
+<main id="app"></main>
+<script>
+"use strict";
+
+const STATES = [
+  ["empty", "Empty"], ["ready", "Ready"], ["running", "Running"], ["pass", "Pass"],
+  ["fail", "Fail"], ["shrinking", "Shrinking"], ["inconclusive", "Inconclusive"], ["divergence", "Spec divergence"],
+];
+const MISMATCH = ["STALE_KEPT", "WRONGLY_EVICTED", "ASSERTION_MISMATCH"];
+const ui = { mode: "server", server: null, view: null, run: 1, sel: null, showRaw: false, error: null, notice: null, watching: null, pending: null, open: {}, lastSig: "" };
+
+// ---------- DOM helper: every piece of evidence goes in as text, never as HTML ----------
+function h(tag, props, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, "");
+    else el.setAttribute(k, String(v));
+  }
+  for (const c of children.flat(Infinity)) {
+    if (c === null || c === undefined || c === false) continue;
+    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return el;
+}
+const last = (arr, pred) => { for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) return arr[i]; return undefined; };
+const short = (s, n = 10) => (typeof s === "string" && s.length > n + 6 ? `${s.slice(0, n)}…${s.slice(-4)}` : s ?? "");
+const secs = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const label = (v) => String(v).replace(/_/g, " ");
+const pill = (v) => h("span", { class: `pill v-${v}` }, label(v));
+const jsonl = (t) => (t || "").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+const pretty = (x) => JSON.stringify(x, null, 2);
+/** <details> that stays open across re-renders. */
+function det(id, summary, ...content) {
+  if (!(id in ui.open)) ui.open[id] = false;
+  return h("details", { open: ui.open[id], ontoggle: (e) => { ui.open[id] = e.target.open; } }, h("summary", null, summary), ...content);
+}
+
+// ---------- server API ----------
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: method === "POST" ? { "content-type": "application/json", "x-framelab": "1" } : {}, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+  return data;
+}
+async function act(name, fn) {
+  ui.pending = name; ui.notice = null; render();
+  try { await fn(); } catch (err) { ui.notice = { kind: "error", text: err.message }; }
+  ui.pending = null; await poll(true);
+}
+
+// ---------- model ----------
+function buildModel(files, dir, kind) {
+  const j = (n) => (files[n] ? JSON.parse(files[n]) : null);
+  const verdicts = j("verdicts.json");
+  const runs = [1, 2]
+    .map((k) => ({ k, events: jsonl(files[`events.run${k}.jsonl`]), evidence: j(`evidence.run${k}.json`), meta: j(`meta.run${k}.json`), verdict: (verdicts.runs || []).find((r) => r.run === k) || null }))
+    .filter((r) => r.verdict || r.events.length);
+  return { dir, kind, verdicts, runs, manifest: j("manifest.json"), reduction: j("reduction.json"), rulePack: j("rule_pack.json"), compare: j("compare.json"), scenarioMin: files["scenario.min.yaml"] || null };
+}
+async function openDir(dir) {
+  try {
+    const v = await api("GET", `/api/view?dir=${encodeURIComponent(dir)}`);
+    setView(buildModel(v.files, v.dir, v.kind));
+  } catch (err) { ui.notice = { kind: "error", text: `Could not open ${dir}: ${err.message}` }; }
+  render();
+}
+function setView(model) {
+  ui.view = model; ui.run = model.runs[0]?.k ?? 1; ui.showRaw = false; ui.sel = defaultSelection(model);
+}
+function mapName(p) {
+  const direct = ["verdicts.json", "manifest.json", "reduction.json", "node_pin.json", "compare.json", "scenario.original.yaml", "scenario.min.yaml", "README.md", "rule_pack.json", "events.run1.jsonl", "events.run2.jsonl"];
+  if (direct.includes(p)) return p;
+  let m = p.match(/^evidence\/run(\d)\.(evidence|meta)\.json$/); if (m) return `${m[2]}.run${m[1]}.json`;
+  m = p.match(/^run(\d)\/(evidence|meta)\.json$/); if (m) return `${m[2]}.run${m[1]}.json`;
+  m = p.match(/^run(\d)\/events\.jsonl$/); if (m) return `events.run${m[1]}.jsonl`;
+  return null;
+}
+async function openFolder(list) {
+  const files = {};
+  let top = "";
+  for (const f of list) {
+    const parts = (f.webkitRelativePath || f.name).split("/");
+    top = parts.shift() || top;
+    const name = mapName(parts.join("/"));
+    if (name && !(name in files)) files[name] = await f.text();
+  }
+  if (!files["verdicts.json"]) { ui.notice = { kind: "error", text: "That folder has no verdicts.json. Choose a FrameLab bundle, run or shrink folder." }; render(); return; }
+  setView(buildModel(files, `${top} (local folder)`, files["manifest.json"] ? "bundle" : files["reduction.json"] ? "shrink" : "run"));
+  render();
+}
+
+function columnsOf(run) { return run.events.filter((e) => e.kind === "step-start").map((e) => ({ id: e.step_id, step: e.raw })); }
+function rolesOf(cols) { return cols.filter((c) => c.step.action === "submit").map((c) => c.step.tx_role); }
+function assertionAt(run, role, cpId) { return run.verdict?.assertions.find((a) => a.tx_role === role && a.checkpoint_id === cpId) || null; }
+function cellOf(run, role, col) {
+  const s = col.step;
+  if (s.action === "submit" && s.tx_role === role) {
+    const e = run.events.find((x) => (x.kind === "admitted" || x.kind === "rejected") && x.tx_role === role);
+    return { kind: "submit", fate: e ? e.kind : "not admitted", event: e, sim: run.events.find((x) => x.kind === "simulate" && x.tx_role === role) };
+  }
+  if (s.action !== "advance-to-checkpoint") return null;
+  const a = assertionAt(run, role, s.checkpoint_id);
+  const cp = run.evidence?.checkpoints?.[s.checkpoint_id];
+  if (!cp) return a ? { kind: "checkpoint", fate: "not reached", assertion: a } : null;
+  const tx = cp.txs?.[role];
+  if (!tx) return a ? { kind: "checkpoint", fate: "not submitted", cp, assertion: a } : null;
+  return { kind: "checkpoint", fate: tx.fate, tx, cp, assertion: a };
+}
+function defaultSelection(model) {
+  const run = model.runs[0];
+  if (!run) return null;
+  const cols = columnsOf(run);
+  const as = run.verdict?.assertions || [];
+  const pick = as.find((a) => MISMATCH.includes(a.verdict)) || as.find((a) => a.verdict === "INCONCLUSIVE") || as[0];
+  if (!pick) return null;
+  const ci = cols.findIndex((c) => c.step.action === "advance-to-checkpoint" && c.step.checkpoint_id === pick.checkpoint_id);
+  return ci < 0 ? null : { role: pick.tx_role, col: ci };
+}
+
+// ---------- state ----------
+function currentState() {
+  const s = ui.server;
+  if (s?.job?.running) return s.job.kind === "shrink" && s.job.progress.some((e) => e.kind === "shrink-start") ? "shrinking" : "running";
+  if (ui.view) { const o = ui.view.verdicts.overall; return o === "PASS" ? "pass" : o === "FAIL" ? "fail" : "inconclusive"; }
+  if (s?.env?.status === "ready") return "ready";
+  return "empty";
+}
+function renderStates(state) {
+  const ol = document.getElementById("states");
+  ol.replaceChildren(...STATES.map(([id, name]) =>
+    h("li", { "aria-current": id === state ? "step" : null, class: id === "divergence" ? "unbuilt" : null, title: id === "divergence" ? "Not built: needs a second compatible rule pack (SHOULD)" : null },
+      name, id === "divergence" ? " (not built)" : "")));
+}
+
+// ---------- views ----------
+function noticeBar() {
+  if (!ui.notice) return null;
+  return h("div", { class: `banner ${ui.notice.kind === "error" ? "red" : "grey"}`, role: ui.notice.kind === "error" ? "alert" : "status" },
+    ui.notice.text, " ", h("button", { class: "linkish", onclick: () => { ui.notice = null; render(); } }, "Dismiss"));
+}
+
+function resultsList(results) {
+  if (!results?.length) return h("p", { class: "muted" }, "No saved results yet. Bundles appear here after Export.");
+  return h("div", { class: "results" }, results.map((r) =>
+    h("button", { class: "result", onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${r.overall}` },
+      h("span", { class: "kind" }, r.kind),
+      h("span", null, h("b", null, r.scenario), " ", r.injected ? h("span", { class: "pill v-SPEC_DIVERGENCE" }, "injected regression") : null, r.negative ? h("span", { class: "pill v-INCONCLUSIVE" }, "negative test") : null,
+        h("span", { class: "muted small mono", style: "display:block" }, r.dir)),
+      h("span", { class: `pill v-${r.overall}` }, r.overall))));
+}
+function folderPicker() {
+  const id = "folder-input";
+  return h("span", null,
+    h("label", { for: id, class: "btn", style: "display:inline-flex;align-items:center", tabindex: "0", onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.getElementById(id).click(); } } }, "Open bundle folder…"),
+    h("input", { id, type: "file", webkitdirectory: true, multiple: true, class: "sr-only", onchange: (e) => openFolder([...e.target.files]) }));
+}
+
+function viewEmpty() {
+  const s = ui.server;
+  const env = s?.env;
+  const starting = env?.status === "starting" || ui.pending === "env";
+  const failed = env?.status === "stopped" && env.exit_code !== 0;
+  return [
+    h("section", { class: "panel" },
+      h("h2", null, "No target yet"),
+      ui.mode === "file"
+        ? h("p", null, "This page is open from disk, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout.")
+        : h("p", null, "Start the pinned local stack (ethrex + sidecar on 127.0.0.1) to check pins and capabilities, then run a scenario."),
+      h("div", { class: "row" },
+        ui.mode === "server" ? h("button", { class: "btn primary", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, starting ? "Starting local network…" : "Start local network") : null,
+        folderPicker()),
+      starting ? h("div", { "aria-hidden": "true" }, h("div", { class: "skeleton", style: "width:60%" }), h("div", { class: "skeleton", style: "width:40%" })) : null,
+      failed ? h("div", { class: "banner red", role: "alert" }, `The local network stopped (exit ${env.exit_code}). Check Docker, then try again.`) : null,
+      env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log" }, env.log.join("\n"))) : null),
+    ui.mode === "server" ? h("section", { class: "panel" }, h("h3", null, "Open a saved result"), resultsList(s?.results)) : null,
+  ];
+}
+
+function viewReady() {
+  const s = ui.server;
+  const info = s.env.info;
+  const scenarios = s.scenarios || [];
+  const builds = s.builds || [];
+  const scenarioSel = h("select", { id: "scenario", onchange: (e) => { ui.lastScenario = e.target.value; } }, scenarios.map((f) => h("option", { value: f, selected: f === (ui.lastScenario || "scenarios/s1-payer-drop.yaml") ? true : null }, f)));
+  const buildSel = h("select", { id: "build", onchange: (e) => { ui.lastBuild = e.target.value; } }, builds.map((b) => h("option", { value: b.id, selected: b.id === (ui.lastBuild || "observe") ? true : null }, b.patches.length ? `${b.label}: LOCAL INJECTED REGRESSION (${b.patches.join(", ")})` : `${b.label}: pinned sidecar + observe patch`)));
+  const rp = info.rule_pack;
+  return [
+    h("section", { class: "panel" },
+      h("div", { class: "row" }, h("h2", null, "Local network ready"), h("span", { class: "spacer" }),
+        h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, "Stop network")),
+      h("p", { class: "muted" }, info.note),
+      h("div", { class: "workspace", style: "grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))" },
+        h("div", null, h("h4", null, "Pins"), h("dl", { class: "kv" },
+          h("dt", null, "ethrex"), h("dd", { class: "mono" }, `${info.pins.ethrex.image} (${short(info.pins.ethrex.image_id, 19)})`),
+          h("dt", null, "client"), h("dd", { class: "mono" }, info.pins.ethrex.client_version),
+          h("dt", null, "commit"), h("dd", { class: "mono" }, info.pins.ethrex.pinned_commit),
+          h("dt", null, "genesis"), h("dd", { class: "mono" }, `sha256 ${short(info.pins.ethrex.genesis_sha256, 12)}, chain ${info.pins.ethrex.chain_id}`),
+          h("dt", null, "sidecar"), h("dd", { class: "mono" }, `${info.pins.sidecar.commit.slice(0, 12)} · ${info.pins.sidecar.build_label}-${info.pins.sidecar.build_hash.slice(0, 12)}`),
+          h("dt", null, "patches"), h("dd", { class: "mono" }, info.pins.sidecar.patches.map((p) => p.file).join(", ")),
+          h("dt", null, "block height"), h("dd", { class: "mono" }, info.block_height))),
+        h("div", null, h("h4", null, "Rule pack and compatibility"), h("dl", { class: "kv" },
+          h("dt", null, "pack"), h("dd", { class: "mono" }, `${rp.id} (${rp.hash.slice(0, 12)})`),
+          h("dt", null, "source"), h("dd", { class: "mono" }, rp.source_revision),
+          h("dt", null, "quotes"), h("dd", null, rp.quotes_verified === rp.quotes ? h("span", { class: "ok" }, `✓ ${rp.quotes_verified}/${rp.quotes} found verbatim at the pinned source`) : h("span", { class: "no" }, `✗ only ${rp.quotes_verified}/${rp.quotes} quotes verified`))),
+          h("h4", null, "Capabilities"), h("ul", { class: "pre" }, Object.entries(info.capabilities).map(([k, v]) =>
+            h("li", null, h("span", { class: String(v).startsWith("ok") ? "ok" : "no", "aria-hidden": "true" }, String(v).startsWith("ok") ? "✓" : "✗"), h("span", null, h("b", null, k), " ", h("span", { class: "muted" }, v))))))),
+      h("h4", null, "Run"),
+      h("div", { class: "row", style: "align-items:end" },
+        h("div", { class: "field" }, h("label", { for: "scenario" }, "Scenario"), scenarioSel),
+        h("div", { class: "field" }, h("label", { for: "build" }, "Node build"), buildSel),
+        h("button", { class: "btn primary", disabled: ui.pending, onclick: () => {
+          ui.lastScenario = scenarioSel.value; ui.lastBuild = buildSel.value;
+          act("run", () => api("POST", "/api/run", { scenario: scenarioSel.value, build: buildSel.value }));
+        } }, "Run scenario")),
+      h("p", { class: "muted small" }, "Each run stops this probe stack and starts two fresh stacks of its own (run 1/2, run 2/2).")),
+    h("section", { class: "panel" }, det("ready-results", h("h3", null, "Open a saved result"), resultsList(s.results))),
+  ];
+}
+
+function viewRunning() {
+  const job = ui.server.job;
+  const p = job.progress;
+  const runStart = last(p, (e) => e.kind === "run-start");
+  const step = last(p, (e) => e.kind === "step");
+  const wait = last(p, (e) => e.kind === "checkpoint-wait");
+  const waitDone = wait && p.some((e) => e.kind === "pass" && e.at >= wait.at && e.run === wait.run && e.checkpoint_id === wait.checkpoint_id);
+  const done = p.filter((e) => e.kind === "run-done");
+  const resetting = last(p, (e) => e.kind === "reset");
+  const cancelling = ui.cancelRequested === job.dir;
+  const runNo = runStart ? runStart.run : 1;
+  return [h("section", { class: "panel" },
+    h("div", { class: "row" },
+      h("h2", { class: "live" }, job.kind === "shrink" ? `Shrink: original double run of ${job.label}` : `Running ${job.label}`),
+      h("span", { class: "spacer" }),
+      h("button", { class: "btn primary", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, cancelling ? "Cancelling…" : "Cancel")),
+    cancelling ? h("p", { class: "banner grey", role: "status" }, "Stops before the next step. The result will be INCONCLUSIVE, not green.") : null,
+    h("div", { class: "stats" },
+      h("div", { class: "stat" }, h("b", null, `Run ${runNo}/2`), h("span", null, runStart ? `node build ${runStart.build}` : "preparing")),
+      h("div", { class: "stat" }, h("b", { class: "mono", style: "font-size:16px" }, step && step.run === runNo ? step.step_id : resetting && resetting.run === runNo ? "reset" : "—"),
+        h("span", null, step && step.run === runNo ? `current action: ${step.action} (step ${step.index + 1}/${step.total})` : "fresh ethrex container + fresh sidecar")),
+      h("div", { class: "stat" },
+        h("b", { class: "mono", style: "font-size:16px" }, wait && wait.run === runNo ? wait.checkpoint_id : "—"),
+        h("span", null, !wait || wait.run !== runNo ? "no checkpoint yet" : waitDone ? `pass seen for block ${wait.block}` : `waiting for the reconcile pass of block ${wait.block} (${secs(Date.now() - wait.at)} of ${secs(wait.limit_ms)})`)),
+      h("div", { class: "stat" }, h("b", null, mmss(Date.now() - job.started)), h("span", null, "elapsed"))),
+    done.length ? h("p", null, done.map((d) => h("span", { style: "margin-right:16px" }, `run ${d.run}: `, pill(d.overall), ` ${d.executed}/${d.declared} assertions`))) : null,
+    det("run-log", "Live log", h("pre", { class: "log" }, job.log.join("\n") || "…")))];
+}
+
+function viewShrinking() {
+  const job = ui.server.job;
+  const p = job.progress;
+  const start = last(p, (e) => e.kind === "shrink-start");
+  const cands = p.filter((e) => e.kind === "candidate");
+  const lc = cands.at(-1);
+  const totals = lc?.totals || { node_tested: 0, kept: 0, unresolved: 0, invalid: 0, boring: 0, cached: 0 };
+  const limitC = start.candidates_limit, limitW = start.wall_limit_ms;
+  const used = Date.now() - start.at;
+  const stopping = ui.cancelRequested === job.dir;
+  const t = start.target;
+  const lastIdx = p.lastIndexOf(lc ?? start);
+  const live = p.slice(lastIdx + 1).filter((e) => e.kind === "step" || e.kind === "checkpoint-wait" || e.kind === "pass").at(-1);
+  const liveStep = last(p.slice(lastIdx + 1), (e) => e.kind === "step");
+  const nowLine = live
+    ? `On the node now: candidate ${(lc?.n ?? 0) + 1}, fresh run ${live.run}` + (liveStep ? `, step ${liveStep.index + 1}/${liveStep.total} (${liveStep.step_id})` : "") + (live.kind === "checkpoint-wait" ? `, waiting for the block ${live.block} pass` : "")
+    : null;
+  return [h("section", { class: "panel" },
+    h("div", { class: "row" },
+      h("h2", { class: "live" }, `Shrinking ${job.label}`), h("span", { class: "spacer" }),
+      h("button", { class: "btn primary", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, stopping ? "Stopping after this candidate…" : "Stop and keep best")),
+    stopping ? h("p", { class: "banner grey", role: "status" }, "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported.") : null,
+    h("p", null, "Frozen target: ", h("b", null, t.assertion_id), " ", pill(t.verdict), ` on ${t.tx_role} under ${t.rule_ref} at ${t.checkpoint_id}`),
+    h("div", { class: "stats" },
+      h("div", { class: "stat" }, h("b", null, totals.node_tested), h("span", null, `attempted on the node (of ${limitC})`)),
+      h("div", { class: "stat" }, h("b", null, totals.kept), h("span", null, "kept: still reproduces")),
+      h("div", { class: "stat" }, h("b", null, totals.unresolved), h("span", null, "unresolved: never a success")),
+      h("div", { class: "stat" }, h("b", null, totals.invalid), h("span", null, "rejected before any node run")),
+      h("div", { class: "stat" }, h("b", null, totals.cached), h("span", null, "cache hits")),
+      h("div", { class: "stat" }, h("b", null, `${Math.max(0, limitC - totals.node_tested)} · ${mmss(limitW - used)}`), h("span", null, "budget left: candidates · wall time"))),
+    nowLine ? h("p", { class: "mono small", role: "status" }, nowLine) : null,
+    h("h4", null, "Latest candidates"),
+    h("table", { class: "plain small" }, h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "phase"), h("th", null, "removed"), h("th", null, "outcome"), h("th", null, "reason"))),
+      h("tbody", null, cands.slice(-12).reverse().map((c) => h("tr", null, h("td", null, c.n), h("td", null, c.phase), h("td", null, `${c.removed_units} units, ${c.removed_actors} actors`),
+        h("td", null, c.outcome, c.cached ? " (cached)" : ""), h("td", { class: "muted" }, String(c.reason).slice(0, 110)))))),
+    det("shrink-log", "Live log", h("pre", { class: "log" }, job.log.join("\n"))))];
+}
+
+function ruleBlock(ruleId) {
+  const pack = ui.view.rulePack;
+  const rule = pack?.rules?.find((r) => r.id === ruleId);
+  if (!rule) return h("p", { class: "muted" }, `Rule ${ruleId}: text not available in this folder.`);
+  const rev = pack.source?.revision || "";
+  return h("div", null,
+    h("h4", null, `Rule ${rule.id} · ${rule.strength}`),
+    h("p", null, rule.summary),
+    rule.refs.map((ref) => h("blockquote", null, ref.quote,
+      h("cite", null, pack.source?.repo ? h("a", { href: `${pack.source.repo}/blob/${rev}/${ref.path}`, target: "_blank", rel: "noreferrer" }, `${ref.path}`) : ref.path, ` @ ${rev.slice(0, 7)}${ref.section ? ` · ${ref.section}` : ""}`))),
+    h("p", { class: "muted small" }, pack.authority || ""));
+}
+
+function detailPanel(run, cols, roles) {
+  const sel = ui.sel;
+  if (!sel || !cols[sel.col] || !roles.includes(sel.role)) return h("aside", { class: "panel detail" }, h("p", { class: "muted" }, "Select a cell to see before and after state, the expectation, the rule text and the raw call."));
+  const col = cols[sel.col];
+  const c = cellOf(run, sel.role, col);
+  const header = h("h3", null, `${sel.role} at ${col.id}`);
+  if (!c) return h("aside", { class: "panel detail" }, header, h("p", { class: "muted" }, "Nothing recorded for this tx at this step."));
+  if (c.kind === "submit") {
+    return h("aside", { class: "panel detail" }, header,
+      h("dl", { class: "kv" }, h("dt", null, "run"), h("dd", null, `run ${run.k}`), h("dt", null, "step"), h("dd", { class: "mono" }, col.id),
+        h("dt", null, "result"), h("dd", null, c.fate), c.event?.tx_hash ? [h("dt", null, "tx"), h("dd", { class: "mono" }, c.event.tx_hash)] : null),
+      c.sim ? det("raw-sim", "Raw call: ethrex_simulateFrameTransaction", h("pre", null, pretty(c.sim.raw))) : null,
+      c.event?.raw ? det("raw-admission", `Raw sidecar response (${c.fate})`, h("pre", null, pretty(c.event.raw))) : null);
+  }
+  // before = the tx's fate at the previous checkpoint it was observed at
+  let before = { fate: "admitted", raw: "" };
+  for (let i = sel.col - 1; i >= 0; i--) {
+    const pc = cols[i].step;
+    if (pc.action === "advance-to-checkpoint" && run.evidence?.checkpoints?.[pc.checkpoint_id]?.txs?.[sel.role]) {
+      const t = run.evidence.checkpoints[pc.checkpoint_id].txs[sel.role];
+      before = { fate: t.fate, raw: t.raw_status || "", at: pc.checkpoint_id }; break;
+    }
+  }
+  const a = c.assertion;
+  const status = run.events.find((e) => e.kind === "status" && e.tx_role === sel.role && e.checkpoint_id === col.step.checkpoint_id && e.block_number);
+  const cp = c.cp;
+  return h("aside", { class: "panel detail", "aria-label": "Selected cell" }, header,
+    h("dl", { class: "kv" },
+      h("dt", null, "run"), h("dd", null, `run ${run.k}`),
+      h("dt", null, "checkpoint"), h("dd", { class: "mono" }, col.step.checkpoint_id),
+      cp?.block ? [h("dt", null, "block"), h("dd", { class: "mono" }, `${cp.block.number} · ${short(cp.block.hash, 12)}`)] : null,
+      c.tx?.hash ? [h("dt", null, "tx"), h("dd", { class: "mono" }, c.tx.hash)] : null,
+      c.tx?.payer ? [h("dt", null, "payer"), h("dd", { class: "mono" }, c.tx.payer)] : null),
+    h("div", { class: "ba" },
+      h("div", null, h("span", { class: "label" }, before.at ? `before (${before.at})` : "before"), h("span", { class: "mono" }, before.fate), before.raw ? h("span", { class: "muted small" }, ` raw ${before.raw}`) : null),
+      h("span", { "aria-hidden": "true" }, "→"),
+      h("div", null, h("span", { class: "label" }, "after"), h("span", { class: "mono" }, c.fate), c.tx?.raw_status ? h("span", { class: "muted small" }, ` raw ${c.tx.raw_status}`) : null)),
+    a ? h("div", null,
+      h("div", { class: "row" }, h("b", null, a.assertion_id), pill(a.verdict)),
+      a.reasons.some((r) => r.startsWith(`expected ${a.expected}, observed ${a.observed}`)) ? null : h("p", null, `expected ${a.expected}, observed ${a.observed}`),
+      a.reasons.some((r) => r.startsWith("wrong test expectation")) ? h("p", { class: "banner grey" }, "Wrong test expectation (deliberate). This says nothing about the node.") : null,
+      h("ul", { class: "facts" }, a.reasons.map((r) => h("li", null, r))),
+      h("h4", null, "Applicability"),
+      a.preconditions.length ? h("ul", { class: "pre" }, a.preconditions.map((p) => h("li", null,
+        h("span", { class: p.holds === true ? "ok" : p.holds === false ? "no" : "unk", "aria-label": p.holds === true ? "holds" : p.holds === false ? "does not hold" : "unknown" }, p.holds === true ? "✓" : p.holds === false ? "✗" : "?"),
+        h("span", null, h("b", null, p.precondition.kind), p.detail ? h("span", { class: "muted" }, ` ${p.detail.replace(/\bat (1\d{12})\b/, (_, ms) => `at ${new Date(Number(ms)).toISOString().slice(11, 23)} UTC`)}`) : null)))) : h("p", { class: "muted" }, "No preconditions were evaluated (the assertion stopped earlier)."),
+      ruleBlock(a.rule_ref)) : h("p", { class: "muted" }, "No assertion is attached to this cell."),
+    cp ? h("div", null,
+      h("h4", null, "Checkpoint state"),
+      h("p", null, cp.pass ? `Reconcile pass completed for block ${cp.pass.block}: ${cp.pass.revalidated.length} re-simulated, ${cp.pass.balance_cancelled.length} cancelled by balance enforcement.` : "No completed reconcile pass was observed."),
+      cp.balances ? h("table", { class: "plain small" }, h("tbody", null, Object.entries(cp.balances).map(([role, wei]) => h("tr", null, h("th", null, role), h("td", { class: "mono" }, `${wei} wei`))))) : null,
+      cp.storage ? h("table", { class: "plain small" }, h("tbody", null, Object.entries(cp.storage).map(([k, v]) => h("tr", null, h("th", null, k), h("td", { class: "mono" }, v))))) : null) : null,
+    status ? det("raw-status", "Raw call: skandha_frameTransactionStatus + explorer at this checkpoint", h("pre", null, pretty(status.raw))) : null);
+}
+
+function timeline() {
+  const m = ui.view;
+  const run = m.runs.find((r) => r.k === ui.run) || m.runs[0];
+  if (!run) return h("section", { class: "panel" }, h("p", { class: "muted" }, "No run evidence in this folder."));
+  const cols = columnsOf(run);
+  const roles = rolesOf(cols);
+  const tabs = h("div", { class: "tabs", role: "tablist", "aria-label": "Run" }, m.runs.map((r) =>
+    h("button", { class: "tab", role: "tab", "aria-selected": r.k === run.k ? "true" : "false", onclick: () => { ui.run = r.k; render(); } }, `Run ${r.k}`, r.verdict ? ` · ${r.verdict.overall}` : "")));
+  const thead = h("thead", null, h("tr", null, h("th", { scope: "col" }, "tx role"), cols.map((c) => {
+    const s = c.step;
+    const cp = s.action === "advance-to-checkpoint" ? run.evidence?.checkpoints?.[s.checkpoint_id] : null;
+    const sub = s.action === "advance-to-checkpoint" ? (cp ? `checkpoint · block ${cp.block.number}` : "checkpoint · not reached") : s.action === "submit" ? `submit ${s.tx_role}` : s.action;
+    return h("th", { scope: "col", class: s.action === "advance-to-checkpoint" ? "cp" : null }, h("span", { class: "mono" }, c.id), h("span", { class: "sub" }, sub));
+  })));
+  const tbody = h("tbody", null, roles.map((role) => h("tr", null, h("th", { scope: "row" }, role), cols.map((col, ci) => {
+    const c = cellOf(run, role, col);
+    if (!c) return h("td", null);
+    const a = c.assertion;
+    const selected = ui.sel && ui.sel.role === role && ui.sel.col === ci;
+    return h("td", null, h("button", {
+      class: `cell ${a ? `v-${a.verdict}` : c.fate === "not reached" || c.fate === "not submitted" ? "empty" : ""}`,
+      "aria-pressed": selected ? "true" : "false",
+      "aria-label": `${role} at ${col.id}: ${c.fate}${a ? `; ${a.assertion_id} ${label(a.verdict)}` : ""}`,
+      onclick: () => { ui.sel = { role, col: ci }; render(); },
+    }, a ? h("span", { class: "aid" }, a.assertion_id) : null, h("span", { class: "fate" }, c.fate), a ? h("span", { class: "small vlabel" }, label(a.verdict)) : null));
+  }))));
+  return h("section", { class: "workspace" },
+    h("div", { class: "panel" }, h("div", { class: "row" }, h("h3", null, m.reduction ? "Timeline: original scenario, two fresh runs" : "Timeline"), h("span", { class: "spacer" }), tabs),
+      h("div", { class: "grid-wrap" }, h("table", { class: "timeline" }, thead, tbody)),
+      h("p", { class: "muted small" }, "Steps and blocks run across; tx roles run down. Coloured cells carry an assertion.")),
+    detailPanel(run, cols, roles));
+}
+
+function missingFacts(m) {
+  const facts = [];
+  if (m.verdicts.cancelled) facts.push("The run was cancelled by the user.");
+  for (const d of m.verdicts.disagreements || []) facts.push(`Runs disagree: ${d}`);
+  for (const r of m.runs) {
+    for (const p of r.evidence?.problems || []) facts.push(`run ${r.k}: ${p.kind}${p.checkpoint_id ? ` at ${p.checkpoint_id}` : ""}: ${p.detail}`);
+    for (const a of r.verdict?.assertions || []) if (a.verdict === "INCONCLUSIVE") for (const why of a.reasons) facts.push(`run ${r.k}: ${a.assertion_id}: ${why}`);
+    if (r.verdict && r.verdict.counts.executed === 0) facts.push(`run ${r.k}: zero assertions executed`);
+  }
+  return [...new Set(facts)];
+}
+
+function viewResult(state) {
+  const m = ui.view;
+  const v = m.verdicts;
+  const patches = (v.sidecar_build?.patches || []).map((p) => p.file);
+  const injected = m.manifest?.injected_regression || (patches.some((f) => f.split("/").pop().startsWith("inject-")) ? { label: v.sidecar_build.label, patch: patches.find((f) => f.includes("inject-")) } : null);
+  const r1 = m.runs[0]?.verdict;
+  const reached = Math.min(...m.runs.map((r) => r.verdict?.counts.executed ?? 0));
+  const declared = r1?.counts.declared ?? 0;
+  const rules = [...new Set((r1?.assertions || []).filter((a) => a.verdict !== "INCONCLUSIVE").map((a) => a.rule_ref))];
+  const first = r1?.assertions.find((a) => MISMATCH.includes(a.verdict));
+  const reproducible = v.overall === "FAIL" && !(v.disagreements || []).length && m.runs.length === 2 && m.runs.every((r) => r.verdict?.overall === "FAIL");
+  const canAct = ui.mode === "server" && !m.dir.includes("(local folder)");
+  const canExport = canAct && m.kind !== "bundle" && !v.fault && !v.run2_sidecar_build && !v.cancelled;
+  const exportBtn = (primary) => h("button", { class: `btn${primary ? " primary" : ""}`, disabled: !canExport || ui.pending, title: canExport ? null : m.kind === "bundle" ? "Already a bundle" : "Negative-path, cancelled or local-folder results are not exported", onclick: () => act("export", async () => {
+    const r = await api("POST", "/api/export", { dir: m.dir });
+    if (!r.ok) throw new Error(r.output.join(" · "));
+    ui.notice = { kind: "info", text: `Bundle written to ${r.bundle}. Replay it without the UI: FRAMELAB=/path/to/framelab ${r.bundle}/replay.sh` };
+    await openDir(r.bundle);
+  }) }, m.kind === "bundle" ? "Exported" : "Export regression");
+
+  let primary, body;
+  if (state === "pass") {
+    body = [h("p", null, h("b", null, `${reached}/${declared}`), " assertions reached on both runs · rules exercised: ", rules.map((r) => h("code", { style: "margin-right:6px" }, r))),
+      h("p", { class: "muted small" }, "Expected invalidations are a pass, not a failure. A PASS covers these assertions only, not the whole client.")];
+    primary = exportBtn(true);
+  } else if (state === "fail") {
+    const why = !reproducible ? "Not reproducible: the two runs do not agree on the mismatch." : m.reduction ? "Already shrunk: see the reduction below." : !canAct ? "Start `framelab serve` to shrink from the UI." : null;
+    body = [first ? h("p", null, "First mismatch: ", h("b", null, first.assertion_id), " ", pill(first.verdict), ` ${first.tx_role} expected ${first.expected}, observed ${first.observed} under ${first.rule_ref} at ${first.checkpoint_id}.`) : null,
+      first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? h("p", { class: "banner grey" }, "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.") : h("p", { class: "muted small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
+      why ? h("p", { class: "muted small" }, why) : null];
+    primary = h("span", { class: "row" },
+      h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, "Shrink"),
+      exportBtn(false));
+  } else {
+    const facts = missingFacts(m);
+    body = [h("p", null, h("b", null, "Missing facts"), " (inconclusive is never green):"), h("ul", { class: "facts" }, facts.slice(0, 12).map((f) => h("li", null, f))), facts.length > 12 ? h("p", { class: "muted small" }, `${facts.length - 12} more in the raw evidence.`) : null];
+    primary = h("button", { class: "btn primary", onclick: () => { ui.showRaw = !ui.showRaw; render(); if (ui.showRaw) document.getElementById("raw")?.scrollIntoView({ block: "start" }); } }, ui.showRaw ? "Hide raw evidence" : "View raw evidence");
+  }
+
+  const banners = [
+    injected ? h("div", { class: "banner amber" }, `LOCAL INJECTED REGRESSION: sidecar built with ${injected.patch} on purpose. It demonstrates FrameLab; it is not an upstream bug.`) : null,
+    v.fault ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: deliberate fault ${v.fault.kind}@${v.fault.checkpoint_id}.`) : null,
+    v.run2_sidecar_build ? h("div", { class: "banner grey" }, `NEGATIVE-PATH TEST RUN: run 2 used build ${v.run2_sidecar_build.label}-${v.run2_sidecar_build.buildHash.slice(0, 12)}.`) : null,
+    v.cancelled ? h("div", { class: "banner grey" }, "Cancelled by the user.") : null,
+  ];
+
+  const summary = h("section", { class: `panel summary s-${state}` },
+    h("div", { class: "row" },
+      h("h2", null, v.scenario.id), pill(v.overall), h("span", { class: "muted" }, `exit ${v.exit_code}`),
+      h("span", { class: "muted mono small" }, `${v.sidecar_build.label}-${v.sidecar_build.buildHash.slice(0, 12)} · rules ${v.rule_pack.id}`),
+      h("span", { class: "spacer" }),
+      h("button", { class: "btn", onclick: () => { ui.view = null; ui.sel = null; render(); } }, "Close")),
+    h("p", { class: "muted small mono" }, `${m.kind} · ${m.dir} · scenario ${v.scenario.hash.slice(0, 12)}`),
+    banners, body, h("div", { class: "row" }, primary));
+
+  const red = m.reduction;
+  const reduction = red ? h("section", { class: "panel" },
+    h("h3", null, "Reduction"),
+    h("p", null, h("b", null, red.claim)),
+    h("p", null, "Target, frozen and unchanged: ", h("b", null, red.target.assertion_id), " ", pill(red.target.verdict), ` on ${red.target.tx_role} under ${red.target.rule_ref} at ${red.target.checkpoint_id}.`),
+    red.reduced ? h("table", { class: "plain" }, h("thead", null, h("tr", null, h("th", null, ""), ["steps", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("th", null, k)))),
+      h("tbody", null, [["original", red.original], ["reduced", red.reduced]].map(([n, c]) => h("tr", null, h("th", null, n), ["total", "setup", "action", "checkpoints", "actors", "expectations"].map((k) => h("td", null, c[k])))))) : h("p", null, "No smaller confirmed case."),
+    red.reduced ? [h("h4", null, "Removed steps"), h("div", { class: "chips" }, red.reduced.removed_units.map((u) => h("span", { class: "chip" }, u))),
+      red.reduced.removed_actors.length ? [h("h4", null, "Removed actors"), h("div", { class: "chips" }, red.reduced.removed_actors.map((u) => h("span", { class: "chip" }, u)))] : null] : null,
+    red.pruned_expectations?.length ? h("p", null, `Assertions removed from the reduced case because their preconditions no longer hold there: ${red.pruned_expectations.join(", ")}. No expected fate was edited.`) : null,
+    red.final_confirmation ? [h("h4", null, "Final confirmation (two fresh runs)"), h("ul", { class: "facts" }, red.final_confirmation.reasons.map((r) => h("li", null, r)))] : null,
+    h("p", { class: "muted small" }, `stop: ${red.stop_reason} · attempted ${red.totals.node_tested}, kept ${red.totals.kept}, unresolved ${red.totals.unresolved}, rejected before a node run ${red.totals.invalid}, cached ${red.totals.cached} · ${secs(red.budget.wall_used_ms)} of ${secs(red.budget.wall_limit_ms)}`),
+    m.scenarioMin ? det("min-yaml", "scenario.min.yaml", h("pre", null, m.scenarioMin)) : null) : null;
+
+  const compare = m.compare ? h("section", { class: "panel" }, h("h3", null, "Fix comparison"),
+    h("p", null, `${m.compare.scope}: old build ${m.compare.old_build.label}-${m.compare.old_build.buildHash.slice(0, 12)} → new build ${m.compare.new_build.label}-${m.compare.new_build.buildHash.slice(0, 12)}. Expectations were not changed.`),
+    h("table", { class: "plain" }, h("tbody", null, m.compare.rows.map((r) => h("tr", null, h("th", null, r.assertion_id), h("td", { class: "mono" }, r.before), h("td", null, "→"), h("td", { class: "mono" }, r.after), h("td", null, r.change)))))) : null;
+
+  const raw = ui.showRaw ? h("section", { class: "panel", id: "raw" }, h("h3", null, "Raw evidence"),
+    m.runs.map((r) => det(`raw-evidence-${r.k}`, `run ${r.k}: evidence.json`, h("pre", null, pretty(r.evidence))))) : null;
+
+  return [summary, reduction, compare, timeline(), raw];
+}
+
+// ---------- render loop ----------
+function render() {
+  const state = currentState();
+  renderStates(state);
+  const app = document.getElementById("app");
+  let content;
+  if (state === "running") content = viewRunning();
+  else if (state === "shrinking") content = viewShrinking();
+  else if (state === "pass" || state === "fail" || state === "inconclusive") content = viewResult(state);
+  else if (state === "ready") content = viewReady();
+  else content = viewEmpty();
+  app.replaceChildren(...[noticeBar(), ui.error ? h("div", { class: "banner red", role: "alert" }, ui.error, " ", h("button", { class: "linkish", onclick: () => poll(true) }, "Retry")) : null, ...content].filter(Boolean));
+}
+
+let timer = null;
+async function poll(once) {
+  clearTimeout(timer);
+  if (ui.mode === "file") { render(); return; }
+  let changed = once;
+  try {
+    const s = await api("GET", "/api/state");
+    const sig = JSON.stringify(s);
+    changed = changed || sig !== ui.lastSig || Boolean(ui.error);
+    ui.lastSig = sig; ui.server = s; ui.error = null;
+    const job = s.job;
+    if (job?.running) { ui.watching = job.dir; ui.view = null; }
+    else if (job && ui.watching === job.dir) { ui.watching = null; await openDir(job.dir); }
+  } catch (err) {
+    if (!ui.server) { ui.mode = "file"; render(); return; }
+    ui.error = `Lost contact with the FrameLab server: ${err.message}`;
+    changed = true;
+  }
+  const fast = ui.server?.job?.running || ui.server?.env?.status === "starting";
+  // Idle states re-render only on change, so forms, scroll and open sections survive polling.
+  if (changed || fast) render();
+  timer = setTimeout(() => poll(false), fast ? 1000 : 4000);
+}
+
+if (location.protocol === "file:") { ui.mode = "file"; render(); } else poll(true);
+</script>
+</body>
+</html>

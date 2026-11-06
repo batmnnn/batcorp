@@ -48,7 +48,16 @@ export interface RunConfig {
   ports: { http: number; auth: number; api: number };
   bundleIntervalMs?: number;
   fault?: Fault;
+  /** Checked before every step; a cancelled run stops there and is INCONCLUSIVE. */
+  cancelled?: () => boolean;
+  onProgress?: (p: Progress) => void;
 }
+
+export type Progress =
+  | { kind: "reset"; run: number }
+  | { kind: "step"; run: number; step_id: string; action: Step["action"]; index: number; total: number }
+  | { kind: "checkpoint-wait"; run: number; checkpoint_id: string; block: string; limit_ms: number }
+  | { kind: "pass"; run: number; checkpoint_id: string; block: string; event: string };
 
 export interface NormalizedEvent {
   run: number;
@@ -108,6 +117,7 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
   const emit = (e: Omit<NormalizedEvent, "run" | "at">) => events.push({ run: cfg.run, at: Date.now(), ...e });
 
   await mkdir(cfg.runDir, { recursive: true });
+  cfg.onProgress?.({ kind: "reset", run: cfg.run });
   const ethrexName = `framelab-run${cfg.run}-ethrex`;
   let node: EthrexHandle | undefined;
   let sidecar: SidecarHandle | undefined;
@@ -227,11 +237,16 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
       });
     };
 
-    for (const step of scenario.steps) {
+    for (const [index, step] of scenario.steps.entries()) {
       if (Date.now() - started > scenario.limits.scenario_ms) {
         problems.push({ kind: "scenario-timeout", detail: `exceeded ${scenario.limits.scenario_ms} ms before step ${step.id}` });
         break;
       }
+      if (cfg.cancelled?.()) {
+        problems.push({ kind: "cancelled", detail: `cancelled by the user before step ${step.id}` });
+        break;
+      }
+      cfg.onProgress?.({ kind: "step", run: cfg.run, step_id: step.id, action: step.action, index, total: scenario.steps.length });
       emit({ source: "runner", kind: "step-start", step_id: step.id, raw: step });
       switch (step.action) {
         case "fund": {
@@ -371,7 +386,9 @@ export async function runScenario(cfg: RunConfig): Promise<RunOutput> {
 
           let pass: CheckpointObservation["pass"] = null;
           try {
+            cfg.onProgress?.({ kind: "checkpoint-wait", run: cfg.run, checkpoint_id: s.checkpoint_id, block: block.number.toString(), limit_ms: scenario.limits.checkpoint_wait_ms });
             const line = await waitForPass(sc, block.number, scenario.limits.checkpoint_wait_ms);
+            cfg.onProgress?.({ kind: "pass", run: cfg.run, checkpoint_id: s.checkpoint_id, block: block.number.toString(), event: line.event });
             emit({ source: "observe", kind: line.event, checkpoint_id: s.checkpoint_id, block_number: line.block, raw: line });
             if (line.event === "reconcile.done") {
               pass = { completed: true, block: line.block, revalidated: line.revalidated ?? [], balance_cancelled: line.balanceCancelled ?? [] };
@@ -430,7 +447,7 @@ function observationOf(t: TxState): TxObservation {
   return { ...obs };
 }
 
-async function waitForPass(sc: SidecarHandle, block: bigint, timeoutMs: number): Promise<ObserveLine> {
+export async function waitForPass(sc: SidecarHandle, block: bigint, timeoutMs: number): Promise<ObserveLine> {
   return waitUntil(
     `reconcile pass for block ${block}`,
     async () =>

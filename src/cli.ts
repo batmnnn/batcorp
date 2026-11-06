@@ -1,19 +1,21 @@
 import { createHash } from "node:crypto";
+import { appendFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import YAML from "yaml";
 import { exportBundle } from "./bundle/export.ts";
-import { sha256File } from "./env/ethrex.ts";
+import { sha256File, startEthrex, stopEthrex } from "./env/ethrex.ts";
 import { ETHREX_PIN, SIDECAR_PIN } from "./env/pins.ts";
+import { EngineStepper } from "./env/stepper.ts";
 import { exec } from "./util/proc.ts";
-import { ensureSidecarBuild, type SidecarBuild } from "./env/sidecar.ts";
+import { ensureSidecarBuild, startSidecar, stopSidecar, type SidecarBuild, type SidecarHandle } from "./env/sidecar.ts";
 import { loadRulePack, verifyRulePack, type LoadedRulePack } from "./oracle/rulepack.ts";
 import { combineRuns, exitCode, judgeRun, type RunVerdict } from "./oracle/verdict.ts";
 import type { ShrinkTarget } from "./reducer/candidate.ts";
 import { shrink } from "./reducer/shrink.ts";
 import { diffValues, EXCLUDED_FROM_COMPARISON, project } from "./runner/projection.ts";
-import { FAULT_KINDS, runDirFor, runScenario, writeRunFiles, type Fault, type RunOutput } from "./runner/run.ts";
+import { FAULT_KINDS, RELAYER_KEY, runDirFor, runScenario, waitForPass, writeRunFiles, type Fault, type RunOutput } from "./runner/run.ts";
 import { canonicalHash, loadScenario, type LoadedScenario } from "./scenario/load.ts";
 import type { ScenarioV1 } from "./scenario/types.ts";
 
@@ -31,6 +33,9 @@ interface Prepared {
   fault?: Fault;
   /** Negative-path testing only: run 2 on a different build, to show inconsistent double runs. */
   run2Build?: SidecarBuild;
+  /** Appends one line to `<outDir>/progress.jsonl`; the UI's Running and Shrinking states read it. */
+  progress: (event: Record<string, unknown>) => void;
+  cancel: { requested: boolean };
 }
 
 async function prepare(file: string, label: string, patches: string[], out: string | undefined, kind: string): Promise<Prepared> {
@@ -41,12 +46,25 @@ async function prepare(file: string, label: string, patches: string[], out: stri
   const build = await ensureSidecarBuild(label, [OBSERVE_PATCH, ...patches.map((p) => path.resolve(p))]);
   const outDir = path.resolve(out ?? path.join(FRAMELAB_ROOT, ".runs", `${kind}-${loaded.scenario.id}-${label}-${Date.now()}`));
   await mkdir(outDir, { recursive: true });
-  return { loaded, rulePack, build, outDir };
+  const progressFile = path.join(outDir, "progress.jsonl");
+  const progress = (event: Record<string, unknown>) => appendFileSync(progressFile, `${JSON.stringify({ at: Date.now(), ...event })}\n`);
+  progress({ kind: "start", command: kind, scenario: loaded.scenario.id, build: `${build.label}-${build.buildHash.slice(0, 12)}` });
+  return { loaded, rulePack, build, outDir, progress, cancel: { requested: false } };
 }
 
-async function runOnce(p: Prepared, loaded: LoadedScenario, dir: string, run: number): Promise<{ out: RunOutput; verdict: RunVerdict }> {
+/** Shrink candidates pass `cancellable: false`: a stop request finishes the current candidate (§5.4). */
+async function runOnce(p: Prepared, loaded: LoadedScenario, dir: string, run: number, cancellable = true): Promise<{ out: RunOutput; verdict: RunVerdict }> {
   const build = run === 2 && p.run2Build ? p.run2Build : p.build;
-  const out = await runScenario({ loaded, build, runDir: dir, run, ports: PORTS, fault: p.fault });
+  const out = await runScenario({
+    loaded,
+    build,
+    runDir: dir,
+    run,
+    ports: PORTS,
+    fault: p.fault,
+    cancelled: cancellable ? () => p.cancel.requested : undefined,
+    onProgress: (e) => p.progress(e),
+  });
   await writeRunFiles(dir, out);
   return { out, verdict: judgeRun(loaded.scenario.expectations, out.evidence, p.rulePack.pack) };
 }
@@ -55,25 +73,36 @@ async function runOnce(p: Prepared, loaded: LoadedScenario, dir: string, run: nu
 async function runTwice(p: Prepared) {
   const results: Array<{ out: RunOutput; verdict: RunVerdict }> = [];
   for (const run of [1, 2]) {
+    if (p.cancel.requested) break;
     const build = run === 2 && p.run2Build ? p.run2Build : p.build;
     const fault = p.fault ? `, FAULT ${p.fault.kind}@${p.fault.checkpoint_id}` : "";
     console.error(`run ${run}/2: ${p.loaded.scenario.id} on sidecar build ${build.label}-${build.buildHash.slice(0, 12)}${fault}`);
+    p.progress({ kind: "run-start", run, of: 2, build: `${build.label}-${build.buildHash.slice(0, 12)}` });
     const r = await runOnce(p, p.loaded, runDirFor(p.outDir, run), run);
     console.error(`run ${run}: ${r.verdict.overall} (${r.verdict.counts.executed}/${r.verdict.counts.declared} executed, reset ${r.out.meta.reset.ms} ms, wall ${r.out.meta.wall_ms} ms)`);
+    p.progress({ kind: "run-done", run, overall: r.verdict.overall, executed: r.verdict.counts.executed, declared: r.verdict.counts.declared });
     results.push(r);
   }
-  const [a, b] = results as [(typeof results)[0], (typeof results)[0]];
-  const combined = combineRuns(a.verdict, b.verdict);
-  const disagreements = [...combined.disagreements];
-  const projectionDiff = diffValues(project(a.out.evidence, a.verdict), project(b.out.evidence, b.verdict));
-  disagreements.push(...projectionDiff.map((d) => `projection ${d}`));
-  const overall = disagreements.length > 0 ? "INCONCLUSIVE" : combined.overall;
+  let overall: RunVerdict["overall"];
+  const disagreements: string[] = [];
+  if (results.length < 2) {
+    overall = "INCONCLUSIVE";
+    disagreements.push(`cancelled after ${results.length} of 2 runs`);
+  } else {
+    const [a, b] = results as [(typeof results)[0], (typeof results)[0]];
+    const combined = combineRuns(a.verdict, b.verdict);
+    disagreements.push(...combined.disagreements);
+    const projectionDiff = diffValues(project(a.out.evidence, a.verdict), project(b.out.evidence, b.verdict));
+    disagreements.push(...projectionDiff.map((d) => `projection ${d}`));
+    overall = disagreements.length > 0 ? "INCONCLUSIVE" : combined.overall;
+  }
   const summary = {
     scenario: { id: p.loaded.scenario.id, hash: p.loaded.hash },
     rule_pack: { id: p.rulePack.pack.id, hash: p.rulePack.hash },
     sidecar_build: p.build,
     ...(p.run2Build ? { run2_sidecar_build: p.run2Build } : {}),
     ...(p.fault ? { fault: p.fault } : {}),
+    ...(p.cancel.requested ? { cancelled: true } : {}),
     overall,
     exit_code: exitCode(overall),
     disagreements,
@@ -85,8 +114,8 @@ async function runTwice(p: Prepared) {
   return { overall, disagreements, results };
 }
 
-function printVerdicts(v: RunVerdict, disagreements: string[]) {
-  for (const a of v.assertions) console.log(`${a.assertion_id.padEnd(10)} ${a.verdict.padEnd(22)} expected ${a.expected}, observed ${a.observed}  ${a.reasons.join("; ")}`);
+function printVerdicts(v: RunVerdict | undefined, disagreements: string[]) {
+  for (const a of v?.assertions ?? []) console.log(`${a.assertion_id.padEnd(10)} ${a.verdict.padEnd(22)} expected ${a.expected}, observed ${a.observed}  ${a.reasons.join("; ")}`);
   for (const d of disagreements) console.log(`DISAGREE ${d}`);
 }
 
@@ -121,9 +150,14 @@ async function cmdRun(argv: string[]): Promise<number> {
   if (values["run2-patch"]) {
     p.run2Build = await ensureSidecarBuild(values["run2-label"] ?? "run2", [OBSERVE_PATCH, ...values.patch.map((f) => path.resolve(f)), path.resolve(values["run2-patch"])]);
   }
+  process.once("SIGINT", () => {
+    p.cancel.requested = true;
+    console.error("cancel requested: stopping before the next step; the result will be INCONCLUSIVE");
+  });
   const { overall, disagreements, results } = await runTwice(p);
-  printVerdicts(results[0]!.verdict, disagreements);
+  printVerdicts(results[0]?.verdict, disagreements);
   console.log(`${overall} (exit ${exitCode(overall)}) -> ${p.outDir}`);
+  p.progress({ kind: "done", overall, exit_code: exitCode(overall), dir: p.outDir });
   return exitCode(overall);
 }
 
@@ -131,10 +165,16 @@ async function cmdShrink(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: { ...commonOptions, assertion: { type: "string" } } });
   if (!positionals[0]) throw new Error("usage: framelab shrink <scenario.yaml> [--assertion ID] [--patch file]... [--label name] [--out dir]");
   const p = await prepare(positionals[0], values.label, values.patch, values.out, "shrink");
+  // One handler for the whole command: during the original runs it cancels them; later it stops the search.
+  process.once("SIGINT", () => {
+    p.cancel.requested = true;
+    console.error("stop requested: finishing the current candidate, then exporting the best confirmed case");
+  });
   const original = await runTwice(p);
-  printVerdicts(original.results[0]!.verdict, original.disagreements);
+  printVerdicts(original.results[0]?.verdict, original.disagreements);
   if (original.overall !== "FAIL") {
     console.log(`original is ${original.overall}; Shrink needs a FAIL that reproduces in two fresh runs -> ${p.outDir}`);
+    p.progress({ kind: "done", overall: original.overall, exit_code: exitCode(original.overall), dir: p.outDir, shrink: "not started" });
     return exitCode(original.overall);
   }
   const first = original.results[0]!.verdict.assertions.find((a) => (values.assertion ? a.assertion_id === values.assertion : ["STALE_KEPT", "WRONGLY_EVICTED", "ASSERTION_MISMATCH"].includes(a.verdict)));
@@ -144,12 +184,11 @@ async function cmdShrink(argv: string[]): Promise<number> {
   }
   const target: ShrinkTarget = { assertion_id: first.assertion_id, verdict: first.verdict, tx_role: first.tx_role, rule_ref: first.rule_ref, checkpoint_id: first.checkpoint_id };
   console.error(`target frozen: ${JSON.stringify(target)}`);
+  const limits = p.loaded.scenario.limits;
+  const shrinkStarted = Date.now();
+  p.progress({ kind: "shrink-start", target, candidates_limit: limits.shrink_candidates, wall_limit_ms: limits.shrink_wall_ms });
+  const tally = { node_tested: 0, kept: 0, unresolved: 0, invalid: 0, boring: 0, cached: 0 };
 
-  let cancelled = false;
-  process.once("SIGINT", () => {
-    cancelled = true;
-    console.error("stop requested: finishing the current candidate, then exporting the best confirmed case");
-  });
   let runNo = 2;
   const meta = original.results[0]!.out.meta;
   const { report, best } = await shrink({
@@ -159,13 +198,33 @@ async function cmdShrink(argv: string[]): Promise<number> {
     originalRunMs: Math.max(...original.results.map((r) => r.out.meta.wall_ms)),
     cacheSalt: JSON.stringify({ sidecar: p.build.buildHash, rules: p.rulePack.hash, ethrex: [ETHREX_PIN.image, meta.ethrex.image_id], genesis: ETHREX_PIN.genesisSha256, reset: meta.reset.method, driver: meta.driver }),
     cacheDir: path.join(FRAMELAB_ROOT, ".runs", "shrink-cache"),
-    cancelled: () => cancelled,
-    onRecord: (r) => console.error(`candidate ${r.n} [${r.phase}] -${r.removed_units.length} units -${r.removed_actors.length} actors: ${r.outcome}${r.cached ? " (cached)" : ""} ${r.reasons.at(-1) ?? ""}`),
+    cancelled: () => p.cancel.requested,
+    onRecord: (r) => {
+      console.error(`candidate ${r.n} [${r.phase}] -${r.removed_units.length} units -${r.removed_actors.length} actors: ${r.outcome}${r.cached ? " (cached)" : ""} ${r.reasons.at(-1) ?? ""}`);
+      if (r.phase !== "final-confirm") {
+        if (r.cached) tally.cached++;
+        else if (r.outcome !== "invalid") tally.node_tested++;
+        if (r.outcome === "interesting") tally.kept++;
+        else if (r.outcome === "unresolved" || r.outcome === "invalid" || r.outcome === "boring") tally[r.outcome]++;
+      }
+      p.progress({
+        kind: "candidate",
+        n: r.n,
+        phase: r.phase,
+        outcome: r.outcome,
+        cached: r.cached,
+        removed_units: r.removed_units.length,
+        removed_actors: r.removed_actors.length,
+        reason: r.reasons.at(-1) ?? "",
+        totals: { ...tally },
+        budget: { candidates_limit: limits.shrink_candidates, wall_limit_ms: limits.shrink_wall_ms, wall_used_ms: Date.now() - shrinkStarted },
+      });
+    },
     execute: async (scenario: ScenarioV1, label: string) => {
       const loaded: LoadedScenario = { scenario, hash: canonicalHash(scenario), text: YAML.stringify(scenario) };
       const dir = path.join(p.outDir, "candidates", label);
       const t0 = Date.now();
-      const { out, verdict } = await runOnce(p, loaded, dir, ++runNo);
+      const { out, verdict } = await runOnce(p, loaded, dir, ++runNo, false);
       await writeFile(path.join(dir, "scenario.yaml"), loaded.text);
       return { evidence: out.evidence, verdict, ms: Date.now() - t0 };
     },
@@ -174,6 +233,7 @@ async function cmdShrink(argv: string[]): Promise<number> {
   if (best) await writeFile(path.join(p.outDir, "scenario.min.yaml"), YAML.stringify(best));
   for (const run of [1, 2]) await copyFile(path.join(runDirFor(p.outDir, run), "events.jsonl"), path.join(p.outDir, `events.run${run}.jsonl`));
   console.log(report.claim);
+  p.progress({ kind: "done", overall: original.overall, exit_code: exitCode(original.overall), dir: p.outDir, stop_reason: report.stop_reason, claim: report.claim });
   console.log(`stop: ${report.stop_reason}; node-tested ${report.totals.node_tested}, kept ${report.totals.kept}, unresolved ${report.totals.unresolved}, invalid ${report.totals.invalid}, cached ${report.totals.cached}; ${Math.round(report.budget.wall_used_ms / 1000)} s of ${report.budget.wall_limit_ms / 1000} s -> ${p.outDir}`);
   return exitCode(original.overall);
 }
@@ -268,8 +328,82 @@ async function cmdCompare(argv: string[]): Promise<number> {
   return exitCode(after.overall);
 }
 
+/**
+ * Starts the pinned local stack, checks capabilities and the rule pack, writes `env.json`, then
+ * holds the stack until SIGINT/SIGTERM. Runs never reuse it: each starts its own fresh stack.
+ */
+async function cmdEnv(argv: string[]): Promise<number> {
+  const { values } = parseArgs({ args: argv, options: { out: { type: "string" }, "rule-pack": { type: "string", default: "sidecar-policy@2e22ff0" } } });
+  let stop!: () => void;
+  const stopped = new Promise<void>((resolve) => (stop = resolve));
+  process.once("SIGINT", () => stop());
+  process.once("SIGTERM", () => stop());
+
+  const outDir = path.resolve(values.out ?? path.join(FRAMELAB_ROOT, ".runs", `env-${Date.now()}`));
+  await mkdir(outDir, { recursive: true });
+  const rulePack = await loadRulePack(path.join(FRAMELAB_ROOT, "rulepacks", `${values["rule-pack"]}.json`));
+  const checks = await verifyRulePack(rulePack.pack, SIDECAR_PIN.dir);
+  const build = await ensureSidecarBuild("observe", [OBSERVE_PATCH]);
+  const name = "framelab-env-ethrex";
+  const sink = () => {};
+  let sidecar: SidecarHandle | undefined;
+  try {
+    await stopEthrex(name);
+    const node = await startEthrex({ name, httpPort: PORTS.http, authPort: PORTS.auth, workDir: outDir, sink });
+    const head = await new EngineStepper(node, { sink }).init();
+    sidecar = await startSidecar({ build, ethrexRpcUrl: node.rpcUrl, apiPort: PORTS.api, runDir: outDir, relayerPrivateKey: RELAYER_KEY, bundleIntervalMs: 250, ttlSeconds: 86_400, sink });
+    await waitForPass(sidecar, head.number, 15_000);
+    const info = await sidecar.rpc.call<{ bootId: string; oldestSeq: number }>("skandha_explorer_info");
+    const blockHeight = BigInt(await node.rpc.call<string>("eth_blockNumber"));
+    const env = {
+      ready_at: Date.now(),
+      note: "Probe stack. Each run starts its own fresh stack from these pins.",
+      pins: {
+        ethrex: { image: node.image, image_id: node.imageId, client_version: node.clientVersion, pinned_commit: ETHREX_PIN.commit, genesis_sha256: ETHREX_PIN.genesisSha256, genesis_hash: node.genesis.hash, chain_id: node.chainId },
+        sidecar: { repo: SIDECAR_PIN.repo, commit: build.commit, build_label: build.label, build_hash: build.buildHash, patches: build.patches },
+      },
+      rule_pack: {
+        id: rulePack.pack.id,
+        hash: rulePack.hash,
+        source_revision: `${SIDECAR_PIN.repo}@${SIDECAR_PIN.commit}`,
+        quotes: checks.length,
+        quotes_verified: checks.filter((c) => c.hashOk && c.quoteFound).length,
+      },
+      capabilities: {
+        chain_id: `ok: ${node.chainId}`,
+        engine_head: `ok: block ${head.number}`,
+        observe_pass_line: `ok: pass reported for block ${head.number}`,
+        explorer_info: `ok: bootId ${info.bootId}, oldestSeq ${info.oldestSeq}`,
+      },
+      block_height: blockHeight.toString(),
+    };
+    await writeFile(path.join(outDir, "env.json"), JSON.stringify(env, null, 2));
+    console.log(`ready: ethrex ${node.clientVersion} at block ${blockHeight}, sidecar ${build.label}-${build.buildHash.slice(0, 12)}, rule pack ${env.rule_pack.quotes_verified}/${env.rule_pack.quotes} quotes verified -> ${outDir}`);
+    await stopped;
+    return 0;
+  } finally {
+    if (sidecar) await stopSidecar(sidecar);
+    await stopEthrex(name);
+  }
+}
+
+async function cmdServe(argv: string[]): Promise<number> {
+  const { values } = parseArgs({ args: argv, options: { port: { type: "string", default: "4173" } } });
+  const { serve } = await import("./ui/server.ts");
+  await serve(Number(values.port));
+  return 0;
+}
+
 const [command, ...rest] = Bun.argv.slice(2);
-const commands: Record<string, (argv: string[]) => Promise<number>> = { run: cmdRun, shrink: cmdShrink, export: cmdExport, "check-pins": cmdCheckPins, compare: cmdCompare };
+const commands: Record<string, (argv: string[]) => Promise<number>> = {
+  env: cmdEnv,
+  run: cmdRun,
+  shrink: cmdShrink,
+  export: cmdExport,
+  "check-pins": cmdCheckPins,
+  compare: cmdCompare,
+  serve: cmdServe,
+};
 const handler = command ? commands[command] : undefined;
 if (!handler) {
   console.error(`usage: framelab <${Object.keys(commands).join("|")}> ...`);

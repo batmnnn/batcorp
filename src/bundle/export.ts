@@ -97,6 +97,7 @@ export async function exportBundle(opts: ExportOptions): Promise<{ manifest: Bun
   if (verdicts.fault || verdicts.run2_sidecar_build || meta1.fault || meta2?.fault) {
     throw new Error(`${opts.srcDir} is a negative-path test run (deliberate fault or mixed builds); it is not exportable as a regression`);
   }
+  if (verdicts.cancelled) throw new Error(`${opts.srcDir} was cancelled; rerun it before exporting`);
 
   await rm(opts.bundleDir, { recursive: true, force: true });
   await mkdir(path.join(opts.bundleDir, "evidence"), { recursive: true });
