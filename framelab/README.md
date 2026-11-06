@@ -13,7 +13,10 @@ Transaction Alternative Mempool". The design, decisions and measured results are
 [`../docs/framelab-spec.md`](../docs/framelab-spec.md).
 
 **Status: `v0.1-rc`.** The §11 acceptance suite met 54 of 54 checks on the tagged commit `d2d3bec`
-([summary](evidence/v0.1-rc/acceptance-summary.tsv)). CI reruns it on every push.
+([summary](evidence/v0.1-rc/acceptance-summary.tsv)). CI reruns it on every push on linux/amd64
+with the published ethrex image; the first green run met 54 of 54
+([run 42181113803](https://github.com/batmnnn/batcorp/actions/runs/42181113803)). A qualifying
+frame tx is on chain on the public devnet ([below](#public-devnet)).
 
 ## What a run shows
 
@@ -141,6 +144,9 @@ log and a screenshot are kept in [`evidence/devnet-2026-11-06/`](evidence/devnet
   pinned source, but the oracle is reviewable, not proved. A pass covers the assertions run on the
   pinned build and config, not the whole client or the public network.
 - The shrink result is the smallest case found, not a proven minimum.
+- Known open issue: once on CI, a shrink candidate's fresh sidecar did not report its first
+  reconcile pass within 15 s. The shrink stopped with exit 2, not a verdict. It has not recurred
+  locally or on CI, and its cause is not yet known.
 
 ## License
 
