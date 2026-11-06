@@ -1,11 +1,14 @@
 import { expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { buildUnsignedFrameTx, computeSigHash, encodeRawFrameTx, signFrameTx } from "../src/vendor/sidecar/frameTx.ts";
 import { deriveActor, funderActor } from "../src/env/actors.ts";
 
 const BUILD_ROOT = path.resolve(import.meta.dir, "../.runs/builds");
-const build = readdirSync(BUILD_ROOT, { withFileTypes: true }).find((d) => d.isDirectory() && d.name.startsWith("observe-"));
+// A fresh checkout has no sidecar build until the first run makes one.
+const build = existsSync(BUILD_ROOT)
+  ? readdirSync(BUILD_ROOT, { withFileTypes: true }).find((d) => d.isDirectory() && d.name.startsWith("observe-"))
+  : undefined;
 
 test.skipIf(!build)("extracted codec matches the pinned sidecar build", async () => {
   const codec = await import(path.join(BUILD_ROOT, build!.name, "packages/executor/lib/services/FrameTxService/codec.js"));

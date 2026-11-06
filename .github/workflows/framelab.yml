@@ -37,6 +37,7 @@ jobs:
       - name: Acceptance suite
         run: scripts/acceptance.sh .runs/ci
       - name: Devnet submit path on the local stack
+        if: ${{ !cancelled() }}
         run: bun src/gates/devnet-local.ts
       - name: Job summary
         if: always()
@@ -62,3 +63,17 @@ jobs:
             framelab/.runs/ci/logs/
             framelab/.runs/ci/bundle-a4/
             framelab/.runs/ci/bundle-a1-s1/
+      # Per-run node logs for diagnosing a failure. Engine JWTs, sidecar config (relayer key),
+      # raw RPC logs and data dirs stay on the runner.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: framelab-run-logs
+          if-no-files-found: ignore
+          path: |
+            framelab/.runs/ci/runs/**/sidecar.log
+            framelab/.runs/ci/runs/**/observe.jsonl
+            framelab/.runs/ci/runs/**/meta.json
+            framelab/.runs/ci/runs/**/events.jsonl
+            framelab/.runs/devnet-local-*/devnet.json
+            !framelab/.runs/**/sidecar-data/**
