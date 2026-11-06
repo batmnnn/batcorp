@@ -203,7 +203,8 @@ function buildModel(files, dir, kind) {
   const runs = [1, 2]
     .map((k) => ({ k, events: jsonl(files[`events.run${k}.jsonl`]), evidence: j(`evidence.run${k}.json`), meta: j(`meta.run${k}.json`), verdict: (verdicts.runs || []).find((r) => r.run === k) || null }))
     .filter((r) => r.verdict || r.events.length);
-  return { dir, kind, verdicts, runs, manifest: j("manifest.json"), reduction: j("reduction.json"), rulePack: j("rule_pack.json"), compare: j("compare.json"), scenarioMin: files["scenario.min.yaml"] || null };
+  const reduction = j("reduction.json");
+  return { dir, kind, verdicts, runs, manifest: j("manifest.json"), reduction: reduction?.target ? reduction : null, rulePack: j("rule_pack.json"), compare: j("compare.json"), scenarioMin: files["scenario.min.yaml"] || null };
 }
 async function openDir(dir) {
   try {
@@ -312,7 +313,7 @@ function viewEmpty() {
     h("section", { class: "panel" },
       h("h2", null, "No target yet"),
       ui.mode === "file"
-        ? h("p", null, "This page is open from disk, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout.")
+        ? h("p", null, "This page is open without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout.")
         : h("p", null, "Start the pinned local stack (ethrex + sidecar on 127.0.0.1) to check pins and capabilities, then run a scenario."),
       h("div", { class: "row" },
         ui.mode === "server" ? h("button", { class: "btn primary", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, starting ? "Starting local network…" : "Start local network") : null,
@@ -389,9 +390,9 @@ function viewRunning() {
       h("div", { class: "stat" },
         h("b", { class: "mono", style: "font-size:16px" }, wait && wait.run === runNo ? wait.checkpoint_id : "—"),
         h("span", null, !wait || wait.run !== runNo ? "no checkpoint yet" : waitDone ? `pass seen for block ${wait.block}` : `waiting for the reconcile pass of block ${wait.block} (${secs(Date.now() - wait.at)} of ${secs(wait.limit_ms)})`)),
-      h("div", { class: "stat" }, h("b", null, mmss(Date.now() - job.started)), h("span", null, "elapsed"))),
+      h("div", { class: "stat" }, h("b", { "data-since": job.started }, mmss(Date.now() - job.started)), h("span", null, "elapsed"))),
     done.length ? h("p", null, done.map((d) => h("span", { style: "margin-right:16px" }, `run ${d.run}: `, pill(d.overall), ` ${d.executed}/${d.declared} assertions`))) : null,
-    det("run-log", "Live log", h("pre", { class: "log" }, job.log.join("\n") || "…")))];
+    det("run-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n") || "…")))];
 }
 
 function viewShrinking() {
@@ -423,13 +424,13 @@ function viewShrinking() {
       h("div", { class: "stat" }, h("b", null, totals.unresolved), h("span", null, "unresolved: never a success")),
       h("div", { class: "stat" }, h("b", null, totals.invalid), h("span", null, "rejected before any node run")),
       h("div", { class: "stat" }, h("b", null, totals.cached), h("span", null, "cache hits")),
-      h("div", { class: "stat" }, h("b", null, `${Math.max(0, limitC - totals.node_tested)} · ${mmss(limitW - used)}`), h("span", null, "budget left: candidates · wall time"))),
+      h("div", { class: "stat" }, h("b", null, `${Math.max(0, limitC - totals.node_tested)} · `, h("span", { "data-until": start.at + limitW }, mmss(limitW - used))), h("span", null, "budget left: candidates · wall time"))),
     nowLine ? h("p", { class: "mono small", role: "status" }, nowLine) : null,
     h("h4", null, "Latest candidates"),
     h("table", { class: "plain small" }, h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "phase"), h("th", null, "removed"), h("th", null, "outcome"), h("th", null, "reason"))),
       h("tbody", null, cands.slice(-12).reverse().map((c) => h("tr", null, h("td", null, c.n), h("td", null, c.phase), h("td", null, `${c.removed_units} units, ${c.removed_actors} actors`),
         h("td", null, c.outcome, c.cached ? " (cached)" : ""), h("td", { class: "muted" }, String(c.reason).slice(0, 110)))))),
-    det("shrink-log", "Live log", h("pre", { class: "log" }, job.log.join("\n"))))];
+    det("shrink-log", "Live log", h("pre", { class: "log", "data-joblog": "" }, job.log.join("\n"))))];
 }
 
 function ruleBlock(ruleId) {
@@ -533,16 +534,22 @@ function timeline() {
     detailPanel(run, cols, roles));
 }
 
+/** Run-level causes first, then per-assertion ones; a fact seen in several runs is listed once. */
 function missingFacts(m) {
   const facts = [];
-  if (m.verdicts.cancelled) facts.push("The run was cancelled by the user.");
-  for (const d of m.verdicts.disagreements || []) facts.push(`Runs disagree: ${d}`);
+  const dis = m.verdicts.disagreements || [];
+  if (m.verdicts.cancelled) {
+    if (dis.length) facts.push(`The cancelled run stopped early, so the two runs cannot be compared (${dis.length} differences not listed).`);
+  } else for (const d of dis) facts.push(`Runs disagree: ${d.length > 240 ? `${d.slice(0, 240)}…` : d}`);
+  const byText = new Map();
+  const note = (text, k) => { if (!byText.has(text)) byText.set(text, []); byText.get(text).push(k); };
   for (const r of m.runs) {
-    for (const p of r.evidence?.problems || []) facts.push(`run ${r.k}: ${p.kind}${p.checkpoint_id ? ` at ${p.checkpoint_id}` : ""}: ${p.detail}`);
-    for (const a of r.verdict?.assertions || []) if (a.verdict === "INCONCLUSIVE") for (const why of a.reasons) facts.push(`run ${r.k}: ${a.assertion_id}: ${why}`);
-    if (r.verdict && r.verdict.counts.executed === 0) facts.push(`run ${r.k}: zero assertions executed`);
+    if (r.verdict && r.verdict.counts.executed === 0) note("zero assertions executed", r.k);
+    for (const p of r.evidence?.problems || []) note(`${p.kind}${p.checkpoint_id ? ` at ${p.checkpoint_id}` : ""}: ${p.detail}`, r.k);
   }
-  return [...new Set(facts)];
+  for (const r of m.runs) for (const a of r.verdict?.assertions || []) if (a.verdict === "INCONCLUSIVE") for (const why of a.reasons) note(`${a.assertion_id}: ${why}`, r.k);
+  for (const [text, runs] of byText) facts.push(`${runs.length > 1 ? `runs ${runs.join(", ")}` : `run ${runs[0]}`}: ${text}`);
+  return facts;
 }
 
 function viewResult(state) {
@@ -625,17 +632,31 @@ function viewResult(state) {
 }
 
 // ---------- render loop ----------
+let pointerDown = false, deferredRender = false;
+document.addEventListener("pointerdown", () => { pointerDown = true; }, true);
+document.addEventListener("pointerup", () => { pointerDown = false; if (deferredRender) { deferredRender = false; setTimeout(render, 0); } }, true);
+const focusKey = (el) => el && el !== document.body ? `${el.tagName}|${el.id || el.getAttribute("aria-label") || el.textContent.trim().slice(0, 80)}` : null;
+
 function render() {
+  // Replacing the element between pointerdown and pointerup would swallow the click.
+  if (pointerDown) { deferredRender = true; return; }
+  const hadFocus = focusKey(document.activeElement);
   const state = currentState();
   renderStates(state);
   const app = document.getElementById("app");
   let content;
-  if (state === "running") content = viewRunning();
-  else if (state === "shrinking") content = viewShrinking();
-  else if (state === "pass" || state === "fail" || state === "inconclusive") content = viewResult(state);
-  else if (state === "ready") content = viewReady();
-  else content = viewEmpty();
+  try {
+    if (state === "running") content = viewRunning();
+    else if (state === "shrinking") content = viewShrinking();
+    else if (state === "pass" || state === "fail" || state === "inconclusive") content = viewResult(state);
+    else if (state === "ready") content = viewReady();
+    else content = viewEmpty();
+  } catch (err) {
+    content = [h("section", { class: "panel" }, h("p", { class: "banner red", role: "alert" }, `This view could not be drawn: ${err.message}. The files on disk are unchanged.`),
+      ui.view ? h("button", { class: "btn", onclick: () => { ui.view = null; ui.sel = null; render(); } }, "Close") : null)];
+  }
   app.replaceChildren(...[noticeBar(), ui.error ? h("div", { class: "banner red", role: "alert" }, ui.error, " ", h("button", { class: "linkish", onclick: () => poll(true) }, "Retry")) : null, ...content].filter(Boolean));
+  if (hadFocus) [...app.querySelectorAll("button, select, a, summary, input")].find((el) => focusKey(el) === hadFocus)?.focus({ preventScroll: true });
 }
 
 let timer = null;
@@ -645,7 +666,9 @@ async function poll(once) {
   let changed = once;
   try {
     const s = await api("GET", "/api/state");
-    const sig = JSON.stringify(s);
+    const sig = JSON.stringify({ ...s, job: s.job ? { ...s.job, log: undefined } : null });
+    const pre = document.querySelector("pre[data-joblog]");
+    if (pre && s.job) pre.textContent = s.job.log.join("\n") || "…";
     changed = changed || sig !== ui.lastSig || Boolean(ui.error);
     ui.lastSig = sig; ui.server = s; ui.error = null;
     const job = s.job;
@@ -657,10 +680,14 @@ async function poll(once) {
     changed = true;
   }
   const fast = ui.server?.job?.running || ui.server?.env?.status === "starting";
-  // Idle states re-render only on change, so forms, scroll and open sections survive polling.
-  if (changed || fast) render();
+  // Re-render only on change: a rebuilt button under the pointer loses the click, and forms, scroll and open sections must survive polling.
+  if (changed) render();
   timer = setTimeout(() => poll(false), fast ? 1000 : 4000);
 }
+setInterval(() => {
+  for (const el of document.querySelectorAll("[data-since]")) el.textContent = mmss(Date.now() - Number(el.dataset.since));
+  for (const el of document.querySelectorAll("[data-until]")) el.textContent = mmss(Number(el.dataset.until) - Date.now());
+}, 1000);
 
 if (location.protocol === "file:") { ui.mode = "file"; render(); } else poll(true);
 </script>

@@ -190,7 +190,7 @@ export async function exportBundle(opts: ExportOptions): Promise<{ manifest: Bun
     return { manifest: null, findings };
   }
   await writeFile(path.join(opts.bundleDir, "manifest.json"), manifestText);
-  const sums = Object.entries(files)
+  const sums = [...Object.entries(files), ["manifest.json", sha256(manifestText)] as const]
     .map(([rel, h]) => `${h}  ${rel}`)
     .join("\n");
   await writeFile(path.join(opts.bundleDir, "SHA256SUMS"), `${sums}\n`);
@@ -210,7 +210,8 @@ cd "$HERE"
 shasum -a 256 -c SHA256SUMS --quiet || { echo "replay: bundle files do not match SHA256SUMS; refusing to run" >&2; exit 2; }
 bun "$FRAMELAB/src/cli.ts" check-pins "$HERE"
 
-OUT="$HERE/replay-$(date +%Y%m%d-%H%M%S)"
+# Replay output holds runtime files (engine JWT, logs); keep it out of the bundle so the bundle stays shareable.
+OUT="\${FRAMELAB_REPLAY_OUT:-$FRAMELAB/.runs/replay-$(basename "$HERE")-$(date +%Y%m%d-%H%M%S)}"
 set +e
 bun "$FRAMELAB/src/cli.ts" run "$HERE/${o.replayFile}" --label "${o.label}" ${patchArgs} --out "$OUT"
 code=$?
@@ -272,7 +273,7 @@ Prerequisites: macOS or Linux on arm64, Docker, Bun 1.3, a FrameLab checkout (bu
 FRAMELAB=/path/to/framelab ./replay.sh
 \`\`\`
 
-\`replay.sh\` checks \`SHA256SUMS\`, checks pins, runs \`${o.replayFile}\` twice on a fresh local chain and sidecar, then compares with this bundle. Expected exit: ${o.expectedExit}. Everything binds to 127.0.0.1; no public network is used.
+\`replay.sh\` checks \`SHA256SUMS\`, checks pins, runs \`${o.replayFile}\` twice on a fresh local chain and sidecar, then compares with this bundle. Expected exit: ${o.expectedExit}. Everything binds to 127.0.0.1; no public network is used. Replay output goes to \`$FRAMELAB/.runs/\` (or \`$FRAMELAB_REPLAY_OUT\`), never into this folder.
 
 ## Known limits
 

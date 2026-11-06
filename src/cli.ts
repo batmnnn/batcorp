@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { appendFileSync } from "node:fs";
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import YAML from "yaml";
@@ -253,6 +253,17 @@ async function cmdExport(argv: string[]): Promise<number> {
   return 0;
 }
 
+/** Every file under dir, as paths relative to it. */
+async function listFiles(dir: string, rel = ""): Promise<string[]> {
+  const out: string[] = [];
+  for (const entry of await readdir(path.join(dir, rel), { withFileTypes: true })) {
+    const p = rel ? `${rel}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) out.push(...(await listFiles(dir, p)));
+    else out.push(p);
+  }
+  return out;
+}
+
 async function cmdCheckPins(argv: string[]): Promise<number> {
   const dir = argv[0] && path.resolve(argv[0]);
   if (!dir) throw new Error("usage: framelab check-pins <bundle-dir>");
@@ -281,6 +292,12 @@ async function cmdCheckPins(argv: string[]): Promise<number> {
   }
   if (manifest.tool.commit !== (await exec(["git", "rev-parse", "HEAD"], { cwd: FRAMELAB_ROOT, allowFail: true })).stdout.trim()) {
     warnings.push(`FrameLab checkout differs from the bundle's ${manifest.tool.commit}`);
+  }
+  const listed = new Set((await readFile(path.join(dir, "SHA256SUMS"), "utf8")).split("\n").filter(Boolean).map((l) => l.replace(/^[0-9a-f]{64} [ *]/, "")));
+  listed.add("SHA256SUMS");
+  const unlisted = (await listFiles(dir)).filter((f) => !listed.has(f));
+  if (unlisted.length) {
+    warnings.push(`${unlisted.length} file(s) in the bundle folder are not part of the bundle (not in SHA256SUMS); remove them before sharing: ${unlisted.slice(0, 5).join(", ")}${unlisted.length > 5 ? ", …" : ""}`);
   }
   for (const w of warnings) console.error(`check-pins warning: ${w}`);
   for (const e of errors) console.error(`check-pins error: ${e}`);
@@ -412,6 +429,6 @@ if (!handler) {
 try {
   process.exit(await handler(rest));
 } catch (err) {
-  console.error((err as Error).stack ?? String(err));
+  console.error(`framelab ${command}: ${process.env.FRAMELAB_DEBUG ? ((err as Error).stack ?? String(err)) : ((err as Error).message ?? String(err))}`);
   process.exit(2);
 }
