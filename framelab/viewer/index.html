@@ -617,6 +617,22 @@ function copyBtn(text, what) {
     } catch { b.title = "The browser blocked clipboard access"; }
   } }, icon("copy"));
 }
+const bundleName = (dir) => dir.split("/").pop();
+const downloadUrl = (dir) => `/api/download?dir=${encodeURIComponent(dir)}`;
+/** Keeps the address bar on the open result, so the URL is its share link. */
+function setLink(dir) {
+  try { history.replaceState(null, "", dir ? `?b=${dir.split("/").map(encodeURIComponent).join("/")}` : location.pathname); } catch { /* file: pages cannot rewrite their URL */ }
+}
+function linkBtn() {
+  return h("button", { class: "btn ghost", type: "button", onclick: async (e) => {
+    const b = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(location.href);
+      b.replaceChildren(icon("check"), "Link copied");
+      setTimeout(() => b.replaceChildren(icon("copy"), "Copy link"), 1500);
+    } catch { b.title = "The browser blocked clipboard access"; }
+  } }, icon("copy"), "Copy link");
+}
 /** A dt/dd pair; the value is text, optionally mono, optionally copyable in full. */
 function kv(term, value, opts = {}) {
   return [h("dt", null, term), h("dd", null, h("span", { class: `v${opts.mono ? " mono" : ""}`, title: opts.title || null }, value), opts.copy ? copyBtn(opts.copy, term) : null)];
@@ -659,6 +675,7 @@ async function openDir(dir) {
   try {
     const v = await api("GET", `/api/view?dir=${encodeURIComponent(dir)}`);
     setView(buildModel(v.files, v.dir, v.kind));
+    setLink(v.dir);
   } catch (err) { ui.notice = { kind: "error", text: `Could not open ${dir}: ${err.message}` }; }
   render();
 }
@@ -684,6 +701,7 @@ async function openFolder(list) {
   }
   if (!files["verdicts.json"]) { ui.notice = { kind: "error", text: "That folder has no verdicts.json. Choose a FrameLab bundle, run or shrink folder." }; render(); return; }
   setView(buildModel(files, `${top} (local folder)`, files["manifest.json"] ? "bundle" : files["reduction.json"] ? "shrink" : "run"));
+  setLink(null);
   render();
 }
 
@@ -750,7 +768,7 @@ function currentState() {
 function renderTop(state) {
   const s = ui.server, env = s?.env, job = s?.job;
   let tone = "inc", ic = "circle", text = "No target";
-  if (ui.mode === "file") { ic = "folder"; text = "Read only"; }
+  if (state === "empty" && ui.mode !== "server") { ic = "folder"; text = "Read only"; }
   else if (state === "empty") {
     if (env?.status === "starting" || ui.pending === "env") { tone = "accent"; ic = "live"; text = "Starting"; }
     else if (env?.status === "stopped" && env.exit_code !== 0) { tone = "fail"; ic = "xCircle"; text = "Network stopped"; }
@@ -781,6 +799,7 @@ function renderTop(state) {
   const conn = document.getElementById("conn");
   const [cls, ctext, tip] = ui.mode === "file" ? ["file", "file · read only", "Opened as a file: saved bundles only, nothing is uploaded"]
     : ui.error ? ["lost", "server unreachable", "Lost contact with the FrameLab server"]
+    : ui.mode === "hosted" ? ["file", `${location.host} · read only`, "Published bundles only. Nothing runs here; replays run on your own machine"]
     : ["ok", location.host || "local", "Served from this machine; bundles open without any upload"];
   if (conn.dataset.k !== cls + ctext) {
     conn.dataset.k = cls + ctext; conn.className = `conn ${cls}`; conn.title = tip;
@@ -832,6 +851,7 @@ function stageModel(state) {
   if (state === "empty") {
     cur = "target";
     if (ui.mode === "file") set("target", "next", "Read-only page: open a saved bundle");
+    else if (ui.mode === "hosted") set("target", "next", "Published bundles: open one to read its verdict");
     else if (env?.status === "starting" || ui.pending === "env") set("target", "live", "Starting the pinned stack on 127.0.0.1", { p: null });
     else if (env?.status === "stopped" && env.exit_code !== 0) set("target", "fail", `The local network stopped (exit ${env.exit_code})`);
     else set("target", "next", "Start the local network to check the pins");
@@ -886,7 +906,7 @@ function stageModel(state) {
     else if (state === "pass") set("shrink", "skip", "Not needed on a pass");
     else if (state === "inconclusive") set("shrink", "skip", "Only for a reproducible fail");
     else if (!f.reproducible) set("shrink", "skip", "Not reproducible, so not shrunk");
-    else if (!f.canAct) set("shrink", "todo", "Needs framelab serve");
+    else if (!f.canAct) set("shrink", "todo", ui.mode === "hosted" ? "Runs on your machine, from the downloaded bundle" : "Needs framelab serve");
     else set("shrink", "next", "Ready: shrink the failing case", { href: "#summary" });
     if (m.kind === "bundle") set("export", "done", m.compare ? "Bundle · fix compared" : "Bundle with replay.sh", { href: "#stage-export" });
     else if (state === "inconclusive") set("export", "skip", "Only a pass or a fail is exported");
@@ -951,7 +971,7 @@ function flatList(results) {
       h("div", { class: "seg", role: "group", "aria-label": "Filter saved results" }, KINDS.filter(([k]) => counts[k]).map(([k, name]) =>
         h("button", { type: "button", "aria-pressed": f === k ? "true" : "false", onclick: () => { ui.filter = k; render(); } }, name, h("span", { class: "count" }, counts[k])))),
       h("span", { class: "spacer" }),
-      h("span", { class: "faint small" }, "Newest first, from bundles/ and .runs/")),
+      h("span", { class: "faint small" }, ui.mode === "hosted" ? "Newest first" : "Newest first, from bundles/ and .runs/")),
     h("div", { class: "list" }, shown.map((r) =>
       h("button", { class: "grow flat", type: "button", onclick: () => openDir(r.dir), "aria-label": `Open ${r.kind} ${r.scenario}, ${word(r.overall)}` },
         pill(r.overall),
@@ -964,7 +984,9 @@ function flatList(results) {
         icon(ui.allResults ? "dash" : "down"), ui.allResults ? "Show fewer" : `Show all ${matching.length}`)) : null);
 }
 function resultsList(results) {
-  if (!results?.length) return h("div", { class: "empty-note" }, icon("folder"), h("div", null, h("b", null, "No saved results yet"), h("p", { class: "faint small" }, "Bundles appear here after Export; runs and shrinks after they finish.")));
+  if (!results?.length) return h("div", { class: "empty-note" }, icon("folder"), ui.mode === "hosted"
+    ? h("div", null, h("b", null, "No published bundles yet"), h("p", { class: "faint small" }, "A bundle appears here once it is published from a FrameLab checkout."))
+    : h("div", null, h("b", null, "No saved results yet"), h("p", { class: "faint small" }, "Bundles appear here after Export; runs and shrinks after they finish.")));
   const groups = [], byKey = new Map();
   for (const r of results) {
     const k = `${r.scenario}|${r.injected}|${r.negative}`;
@@ -975,7 +997,7 @@ function resultsList(results) {
   return h("div", null,
     main.length ? h("div", { class: "list" }, main.map(groupRow)) : null,
     neg.length ? [h("p", { class: "list-k" }, `Negative tests · ${neg.length}`, h("span", { class: "faint" }, " · these check FrameLab's own guards and are built not to pass")), h("div", { class: "list" }, neg.map(groupRow))] : null,
-    det("all-results", `Every saved result · ${results.length}`, flatList(results)));
+    det("all-results", `${ui.mode === "hosted" ? "Every published bundle" : "Every saved result"} · ${results.length}`, flatList(results)));
 }
 function folderPicker(extra) {
   const id = "folder-input";
@@ -990,24 +1012,28 @@ function viewEmpty() {
   const starting = env?.status === "starting" || ui.pending === "env";
   const failed = env?.status === "stopped" && env.exit_code !== 0;
   const server = ui.mode === "server";
-  const head = !server ? titleRow("inc", "folder", "Read-only page")
+  const hosted = ui.mode === "hosted";
+  const head = hosted ? titleRow("inc", "folder", "Published release checks")
+    : !server ? titleRow("inc", "folder", "Read-only page")
     : starting ? titleRow("accent", "live", "Starting the local network")
     : failed ? titleRow("fail", "xCircle", "The local network stopped")
     : titleRow("inc", "circle", "No target running");
-  const lede = !server ? ["Opened without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout."]
+  const lede = hosted ? "Each bundle is a release check that FrameLab ran twice on a pinned local stack and exported with its evidence. Open one to read the verdict and both runs, or download it and replay it on your own machine."
+    : !server ? ["Opened without the FrameLab server, so it can only read saved bundles. To start a network and run scenarios, run ", h("code", null, "bun src/cli.ts serve"), " in the FrameLab checkout."]
     : starting ? "Starting ethrex and the sidecar on 127.0.0.1. Pins, rule-pack quotes and node capabilities are checked before any scenario runs."
     : failed ? `It exited with code ${env.exit_code}. Check that Docker is running, then start it again. The startup log is below.`
     : "Start the pinned stack: ethrex and the sidecar, on 127.0.0.1. Its pins, rule-pack quotes and capabilities are checked before any scenario runs.";
   const focus = h("section", { class: "card", id: "stage-target" },
-    h("span", { class: "faint small" }, "Target"),
+    h("span", { class: "faint small" }, hosted ? "Read-only copy" : "Target"),
     head,
     h("p", { class: "lede" }, lede),
     h("div", { class: "actions" },
       server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, icon("power"), starting ? "Starting…" : "Start local network") : null,
       folderPicker("lg")),
     env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log", "data-envlog": "" }, env.log.join("\n"))) : null,
-    h("p", { class: "facts-line" }, "Binds to 127.0.0.1 only · bundles open without upload · two fresh stacks per run"));
-  return [focus, server ? h("section", { class: "card" }, cardHead("Saved results"), resultsList(s?.results)) : null];
+    h("p", { class: "facts-line" }, hosted ? "Nothing runs here · local folders open without upload · replay.sh checks every file before it starts a node"
+      : "Binds to 127.0.0.1 only · bundles open without upload · two fresh stacks per run"));
+  return [focus, server || hosted ? h("section", { class: "card" }, cardHead(hosted ? "Published bundles" : "Saved results"), resultsList(s?.results)) : null];
 }
 
 function viewReady() {
@@ -1423,7 +1449,7 @@ function missingFacts(m) {
   return facts;
 }
 
-function closeView() { ui.view = null; ui.sel = null; render(); }
+function closeView() { ui.view = null; ui.sel = null; setLink(null); render(); }
 
 function viewResult(state) {
   const m = ui.view;
@@ -1435,6 +1461,8 @@ function viewResult(state) {
     await openDir(r.bundle);
   }) }, icon(m.kind === "bundle" ? "check" : "download"), m.kind === "bundle" ? "Exported" : "Export regression");
   const toEvidence = m.runs.length ? h("button", { class: "btn ghost", onclick: () => document.getElementById("stage-runs")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }) }, icon("down"), "Inspect the two runs") : null;
+  const hostedBundle = ui.mode === "hosted" && m.kind === "bundle";
+  const downloadBtn = (primary) => hostedBundle ? h("a", { class: `btn${primary ? " primary" : ""}`, href: downloadUrl(m.dir), download: `${bundleName(m.dir)}.tar.gz` }, icon("download"), "Download bundle") : null;
 
   const r1 = m.runs[0]?.verdict;
   const as = f.na ? [] : r1?.assertions || [];
@@ -1445,16 +1473,19 @@ function viewResult(state) {
     sentence = `${f.reached} of ${f.declared} assertions reached on both fresh runs, with no mismatch.`;
     body = [f.rules.length ? h("div", { class: "chips-row" }, h("span", { class: "faint small" }, "Rules exercised"), h("div", { class: "chips" }, f.rules.map((r) => h("span", { class: "chip" }, r)))) : null,
       h("p", { class: "faint small" }, "Expected invalidations count as a pass. A pass covers these assertions only, not the whole client.")];
-    primary = exportBtn(true);
+    primary = downloadBtn(true) || exportBtn(true);
   } else if (state === "fail") {
     const cps = [...new Set(mism.map((a) => a.checkpoint_id))];
     const parts = mism.map((a) => `${a.tx_role} was expected ${a.expected} but observed ${a.observed}${cps.length > 1 ? ` at ${a.checkpoint_id}` : ""}`);
     sentence = mism.length ? `${parts.join("; ")}${cps.length === 1 ? ` at ${cps[0]}` : ""}. ${f.reproducible ? "Both runs agree." : "The two runs do not agree."}` : "See the two runs below.";
-    const why = !f.reproducible ? "Not reproducible: the two runs do not agree on the mismatch, so it is not shrunk." : m.reduction ? "Already shrunk: the smallest case is below." : !f.canAct ? "Start `framelab serve` to shrink from the UI." : null;
+    const why = !f.reproducible ? "Not reproducible: the two runs do not agree on the mismatch, so it is not shrunk."
+      : m.reduction ? "Already shrunk: the smallest case is below."
+      : ui.mode === "hosted" ? "Shrinking needs a node, so it runs on your machine: download the bundle, then run framelab shrink on it."
+      : !f.canAct ? "Start `framelab serve` to shrink from the UI." : null;
     body = [f.first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.")
       : h("p", { class: "faint small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
       why ? h("p", { class: "muted small" }, why) : null];
-    primary = [h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"), exportBtn(false)];
+    primary = [h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"), downloadBtn(false) || exportBtn(false)];
   } else {
     sentence = f.na ? "Not applicable to this target, so no node was started and nothing was judged." : `${plural(f.facts.length, "missing fact")}. An inconclusive result is never counted as green.`;
     body = [h("h4", null, "Missing facts"), h("ul", { class: "facts missing" }, f.facts.slice(0, 12).map((x) => h("li", null, x))), f.facts.length > 12 ? h("p", { class: "faint small" }, `${f.facts.length - 12} more in the raw evidence.`) : null];
@@ -1485,6 +1516,7 @@ function viewResult(state) {
 
   const summary = h("section", { class: `card summary s-${state}`, id: "summary" },
     cardHead(h("span", { class: "faint small" }, `Verdict · ${kindLabel}`),
+      hostedBundle ? linkBtn() : null,
       h("button", { class: "btn ghost", "aria-label": "Close", "aria-keyshortcuts": "Escape", onclick: closeView }, icon("x"), "Close", h("kbd", { "aria-hidden": "true" }, "Esc"))),
     h("div", { class: "verdict" }, h("span", { class: `tone-${tone}` }, icon(TONE_ICON[tone])), h("span", { class: `word tone-${tone}` }, word(v.overall)),
       as.length ? h("span", { class: "of" }, `${passed}/${f.declared} passed`) : null),
@@ -1520,11 +1552,13 @@ function viewResult(state) {
     m.scenarioMin ? det("min-yaml", "scenario.min.yaml", h("pre", null, m.scenarioMin)) : null) : null;
 
   const man = m.manifest;
-  const replay = `FRAMELAB=/path/to/framelab ${m.dir}/replay.sh`;
+  const replay = hostedBundle ? `tar -xzf ${bundleName(m.dir)}.tar.gz && FRAMELAB=/path/to/framelab ${bundleName(m.dir)}/replay.sh` : `FRAMELAB=/path/to/framelab ${m.dir}/replay.sh`;
   const exported = m.kind === "bundle" || m.compare ? h("section", { class: "card", id: "stage-export" },
     cardHead(h("div", { class: "lead" }, h("h3", null, m.kind === "bundle" ? "Exported bundle" : "Fix comparison"), m.kind === "bundle" ? h("span", { class: "faint small" }, "Replays as a new execution on a clean local stack, not as playback of the saved events") : null)),
     m.kind === "bundle" ? [
+      hostedBundle ? h("p", { class: "muted" }, "Download it, then replay it from a FrameLab checkout on your machine. replay.sh checks every file against SHA256SUMS and the pins before it starts a node.") : null,
       h("div", { class: "cmd" }, h("code", null, replay), copyBtn(replay, "replay command")),
+      hostedBundle ? h("div", { class: "actions" }, downloadBtn(false)) : null,
       man ? h("dl", { class: "kv" },
         man.tool?.commit ? kv("made by", `${man.tool.name} ${man.tool.version} @ ${man.tool.commit.slice(0, 12)}${man.tool.dirty ? " (dirty tree)" : ""}`, { mono: true, copy: man.tool.commit }) : null,
         man.node?.client_version ? kv("node", man.node.client_version, { mono: true }) : null,
@@ -1618,6 +1652,7 @@ async function poll(once) {
   let changed = once;
   try {
     const s = await api("GET", "/api/state");
+    if (s.mode === "hosted") ui.mode = "hosted";
     const sig = JSON.stringify({ ...s, job: s.job ? { ...s.job, log: undefined } : null });
     const pre = document.querySelector("pre[data-joblog]");
     if (pre && s.job) {
@@ -1631,6 +1666,11 @@ async function poll(once) {
     const job = s.job;
     if (job?.running) { ui.watching = job.dir; ui.view = null; }
     else if (job && ui.watching === job.dir) { ui.watching = null; await openDir(job.dir); }
+    if (!ui.booted) {
+      ui.booted = true;
+      const b = new URLSearchParams(location.search).get("b");
+      if (b && !job?.running) { await openDir(b); changed = true; }
+    }
   } catch (err) {
     if (!ui.server) { ui.mode = "file"; render(); return; }
     ui.error = `Lost contact with the FrameLab server: ${err.message}`;
@@ -1639,7 +1679,8 @@ async function poll(once) {
   const fast = ui.server?.job?.running || ui.server?.env?.status === "starting";
   // Re-render only on change: a rebuilt button under the pointer loses the click, and forms, scroll and open sections must survive polling.
   if (changed) render();
-  timer = setTimeout(() => poll(false), fast ? 1000 : 4000);
+  // The hosted copy only changes when a bundle is published.
+  timer = setTimeout(() => poll(false), ui.mode === "hosted" ? 60000 : fast ? 1000 : 4000);
 }
 setInterval(() => {
   const now = Date.now();

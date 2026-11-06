@@ -19,7 +19,7 @@ interface Job {
   log: string[];
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string
@@ -116,9 +116,9 @@ async function listBuilds(): Promise<Array<{ id: string; label: string; patches:
   ];
 }
 
-async function listResults() {
+export async function listResults(roots = READABLE_ROOTS) {
   const results: Array<{ dir: string; kind: string; scenario: string; overall: string; mtime: number; injected: boolean; negative: boolean }> = [];
-  for (const root of READABLE_ROOTS) {
+  for (const root of roots) {
     const names = await readdir(root).catch(() => []);
     for (const name of names) {
       if (NOT_RESULTS.has(name) || name.startsWith("env-")) continue;
@@ -147,7 +147,7 @@ async function listResults() {
 }
 
 /** Every file the viewer renders, under one flat naming scheme for run, shrink and bundle layouts. */
-async function viewFiles(dir: string) {
+export async function viewFiles(dir: string) {
   const isBundle = await exists(path.join(dir, "manifest.json"));
   const files: Record<string, string> = {};
   const add = async (name: string, ...candidates: string[]) => {
