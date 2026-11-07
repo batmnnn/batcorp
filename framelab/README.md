@@ -47,6 +47,15 @@ eviction order. On that build, `s1-noisy` (S1 plus ten removable noise steps) fa
 on two fresh runs. The same reduced case passes on the unpatched build, and `compare` reports
 `WRONGLY_EVICTED -> PASS` with the scenario and rule pack unchanged.
 
+## Run it in a browser
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/batmnnn/batcorp?quickstart=1)
+
+The button opens this repository in a GitHub Codespace (4 cores, 16 GB) on your own GitHub
+account. The first start installs Bun, the pinned sources and the ethrex image, then replays the
+`s1-pass` bundle as a check, which takes several minutes. The FrameLab UI then opens from port
+4173, which only your GitHub account can reach. Everything below also works in its terminal.
+
 ## Setup
 
 Needs Docker, Bun 1.3.14 and git, on Linux amd64 or macOS arm64.

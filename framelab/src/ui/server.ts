@@ -175,10 +175,19 @@ export async function viewFiles(dir: string) {
   return { dir: rel(dir), kind: isBundle ? "bundle" : files["reduction.json"] ? "shrink" : "run", files };
 }
 
+/** The local origins the UI answers. In a GitHub Codespace, also the codespace's own forwarded address, which only its owner can open. */
+export function uiHosts(port: number, env: Record<string, string | undefined> = process.env): Set<string> {
+  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+  const name = env.CODESPACE_NAME ?? "";
+  const domain = env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN ?? "";
+  if (env.CODESPACES === "true" && /^[a-z0-9-]+$/.test(name) && /^[a-z0-9.-]+$/.test(domain)) hosts.add(`${name}-${port}.${domain}`);
+  return hosts;
+}
+
 export async function serve(port: number): Promise<void> {
   let env: Job | null = null;
   let job: Job | null = null;
-  const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+  const allowedHosts = uiHosts(port);
   const busy = () => job !== null && job.exitCode === null;
 
   const startJob = async (kind: "run" | "shrink", label: string, dir: string, args: string[]) => {

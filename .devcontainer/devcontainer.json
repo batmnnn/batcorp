@@ -1,0 +1,22 @@
+{
+  "name": "FrameLab",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false }
+  },
+  "hostRequirements": { "cpus": 4, "memory": "16gb", "storage": "32gb" },
+  "containerEnv": {
+    "FRAMELAB_ETHREX_IMAGE": "ghcr.io/forshtat/eip8141-devnet@sha256:c9a7770f892e02255999e1c0ffd596ecee704d9175c2480811ccdcfa1c2224c6"
+  },
+  "remoteEnv": { "PATH": "/home/vscode/.bun/bin:${containerEnv:PATH}" },
+  "onCreateCommand": "framelab/scripts/codespace.sh setup",
+  "postStartCommand": "framelab/scripts/codespace.sh serve",
+  "waitFor": "onCreateCommand",
+  "forwardPorts": [4173],
+  "portsAttributes": {
+    "4173": { "label": "FrameLab UI", "onAutoForward": "openBrowser" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": ["framelab/README.md"] }
+  }
+}
