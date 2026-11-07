@@ -131,14 +131,17 @@ export interface JudgeVm {
   expiresAt: string;
   createdAt: string;
   state: string;
+  /** SHA-256 (hex) of the token the VM's relay agent presents to the lab. */
+  agentHash: string;
 }
 
 /** Creates the public IP, NIC and VM. Returns once the VM is accepted; it boots and sets itself up after. */
 export async function createJudgeVm(
   c: LabConfig,
-  o: { name: string; login: string; githubId: number; customData: string; expiresAt: Date }
+  o: { name: string; login: string; githubId: number; customData: string; expiresAt: Date; agentHash?: string }
 ): Promise<{ ip: string }> {
   const tags = { [LAB_TAG]: "judge", login: o.login, "github-id": String(o.githubId), "created-at": new Date().toISOString(), "expires-at": o.expiresAt.toISOString() };
+  const vmTags = o.agentHash ? { ...tags, "agent-sha256": o.agentHash } : tags;
   try {
     await arm("PUT", ipPath(c, o.name), NETWORK, {
       location: c.location,
@@ -166,7 +169,7 @@ export async function createJudgeVm(
     await waitProvisioned(nicPath(c, o.name), NETWORK);
     await arm("PUT", vmPath(c, o.name), COMPUTE, {
       location: c.location,
-      tags,
+      tags: vmTags,
       properties: {
         hardwareProfile: { vmSize: c.vmSize },
         storageProfile: {
@@ -208,6 +211,7 @@ export async function listJudgeVms(c: LabConfig): Promise<JudgeVm[]> {
         expiresAt: vm.tags["expires-at"] ?? "",
         createdAt: vm.tags["created-at"] ?? vm.properties.timeCreated ?? "",
         state: vm.properties.provisioningState,
+        agentHash: vm.tags["agent-sha256"] ?? "",
       });
     }
     next = page.nextLink ?? null;

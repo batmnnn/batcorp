@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+
 /**
- * Cloud-init for a judge VM. The VM gets no Azure identity and no secret: it clones the public
- * repository, sets FrameLab up as the CI job does, and proves the setup with the s1-pass replay
- * before it reports ready on its serial console.
+ * Cloud-init for a judge VM. The VM gets no Azure identity: it clones the public repository,
+ * sets FrameLab up as the CI job does, and proves the setup with the s1-pass replay before it
+ * reports ready on its serial console. Its one credential is the relay token, which lets its
+ * agent offer this VM's FrameLab UI to the lab and nothing more.
  */
+const AGENT_SOURCE = readFileSync(new URL("./agent.ts", import.meta.url), "utf8");
 export const ETHREX_IMAGE = "ghcr.io/forshtat/eip8141-devnet@sha256:c9a7770f892e02255999e1c0ffd596ecee704d9175c2480811ccdcfa1c2224c6";
 export const READY_MARK = "FRAMELAB_SETUP_READY";
 export const FAILED_MARK = "FRAMELAB_SETUP_FAILED";
@@ -21,10 +25,18 @@ export function sshKeys(text: string): string[] {
 
 const indent = (text: string, n: number) => text.split("\n").map((l) => (l ? " ".repeat(n) + l : l)).join("\n");
 
-export function judgeCloudInit(o: { keys: string[]; expiresAt: Date; repo: string; ref: string }): string {
+export interface AgentSettings {
+  url: string;
+  token: string;
+  vm: string;
+}
+
+export function judgeCloudInit(o: { keys: string[]; expiresAt: Date; repo: string; ref: string; agent: AgentSettings }): string {
   if (!o.keys.length) throw new Error("no usable SSH key");
   for (const k of o.keys) if (!KEY.test(k)) throw new Error("not an SSH public key");
   if (!/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+\.git$/.test(o.repo) || !REF.test(o.ref)) throw new Error("bad repository or ref");
+  const a = o.agent;
+  if (!/^wss:\/\/[a-z0-9.-]+(:\d+)?\/agent$/.test(a.url) || !/^[A-Za-z0-9_-]{32,128}$/.test(a.token) || !/^[a-z0-9-]{1,64}$/.test(a.vm)) throw new Error("bad relay settings");
   const until = o.expiresAt.toISOString().replace(/\.\d+Z$/, "Z");
   // Powers the VM off shortly after expiry even if the reaper never runs; deleting it is the reaper's job.
   const backstopMinutes = Math.max(15, Math.ceil((o.expiresAt.getTime() - Date.now()) / 60_000) + 10);
@@ -66,17 +78,71 @@ FrameLab judge VM. It is deleted automatically at ${until}.
 
   FRAMELAB=$PWD evidence/v0.1-rc/injected-s1-reduced/replay.sh   # exit 1, as recorded
   FRAMELAB=$PWD evidence/v0.1-rc/s1-pass/replay.sh               # exit 0
-  bun src/cli.ts serve         # the UI, on 127.0.0.1:4173 of this VM
 
-For the UI, reconnect with a tunnel and open http://127.0.0.1:4173 on your machine:
+The FrameLab UI runs on 127.0.0.1:4173 of this VM as the framelab-ui service
+(journalctl -u framelab-ui for its log). Open it from the lab page, or reconnect with
   ssh -L 4173:127.0.0.1:4173 judge@<this VM's address>
+and open http://127.0.0.1:4173 on your machine.
 
 Only TCP 80 and 443 go out from here. Nothing on this VM is kept.
+`;
+
+  const uiUnit = `[Unit]
+Description=FrameLab UI on 127.0.0.1:4173
+After=docker.service
+Wants=docker.service
+
+[Service]
+User=judge
+WorkingDirectory=/home/judge/batcorp/framelab
+Environment=HOME=/home/judge
+Environment=PATH=/home/judge/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=FRAMELAB_ETHREX_IMAGE=${ETHREX_IMAGE}
+ExecStart=/home/judge/.bun/bin/bun src/cli.ts serve --port 4173
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+  const agentUnit = `[Unit]
+Description=Relay between the lab page and the FrameLab UI on this VM
+After=network-online.target framelab-ui.service
+Wants=network-online.target
+
+[Service]
+User=judge
+EnvironmentFile=/etc/framelab/agent.env
+ExecStart=/home/judge/.bun/bin/bun /opt/framelab/agent.ts
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
 `;
 
   return `#cloud-config
 packages: [unzip]
 write_files:
+  - path: /etc/framelab/agent.env
+    permissions: "0600"
+    content: |
+      LAB_AGENT_URL=${a.url}
+      LAB_AGENT_TOKEN=${a.token}
+      LAB_VM_NAME=${a.vm}
+  - path: /opt/framelab/agent.ts
+    permissions: "0644"
+    content: |
+${indent(AGENT_SOURCE, 6)}
+  - path: /etc/systemd/system/framelab-ui.service
+    permissions: "0644"
+    content: |
+${indent(uiUnit, 6)}
+  - path: /etc/systemd/system/framelab-agent.service
+    permissions: "0644"
+    content: |
+${indent(agentUnit, 6)}
   - path: /etc/profile.d/framelab.sh
     permissions: "0644"
     content: |
@@ -106,6 +172,6 @@ runcmd:
   - [bash, -c, "chmod -x /etc/update-motd.d/* || true"]
   - [bash, -c, "curl -fsSL https://get.docker.com | sh"]
   - [usermod, -aG, docker, judge]
-  - [bash, -c, "if su - judge -c /usr/local/bin/framelab-setup; then echo ${READY_MARK} > /dev/ttyS0; else echo ${FAILED_MARK} > /dev/ttyS0; fi"]
+  - [bash, -c, "if su - judge -c /usr/local/bin/framelab-setup && systemctl daemon-reload && systemctl enable --now framelab-ui.service framelab-agent.service; then echo ${READY_MARK} > /dev/ttyS0; else echo ${FAILED_MARK} > /dev/ttyS0; fi"]
 `;
 }

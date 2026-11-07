@@ -14,9 +14,9 @@ const get = (p: string, init: RequestInit = {}) => fetch(`http://${host}${p}`, i
 test("the hosted copy reports read-only mode with no runner state", async () => {
   const res = await get("/api/state");
   expect(res.status).toBe(200);
-  const s = await res.json();
+  const s = (await res.json()) as { results: Array<{ dir: string; kind: string }> };
   expect(s).toMatchObject({ mode: "hosted", env: null, job: null, scenarios: [], builds: [] });
-  expect(s.results.every((r: { dir: string; kind: string }) => r.dir.startsWith("bundles/") && r.kind === "bundle")).toBe(true);
+  expect(s.results.every((r) => r.dir.startsWith("bundles/") && r.kind === "bundle")).toBe(true);
   expect(res.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
 });
 

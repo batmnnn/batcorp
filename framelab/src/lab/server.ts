@@ -1,16 +1,18 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { createJudgeVm, deleteJudgeVm, labConfig, listJudgeVms, publicIp, serialTail, vmName, type JudgeVm, type LabConfig } from "./azure.ts";
 import { FAILED_MARK, READY_MARK, judgeCloudInit, sshKeys } from "./cloud-init.ts";
 import { limitsFromEnv, readSession, refusal, signSession, type Limits, type Session } from "./policy.ts";
 import { recordSession, sessionsOn, type SessionRow } from "./sessions.ts";
+import { Tunnel, TunnelError, type AgentData } from "./tunnel.ts";
 
 /**
  * The judge VM lab. A judge connects GitHub, then gets one fresh VM that trusts only the SSH keys
  * on their GitHub account and is deleted after its lifetime. The GitHub token is used once, to read
  * the account, and revoked; it is never stored. Writes need a signed session, a same-origin Origin
- * header and `x-framelab: 1`.
+ * header and `x-framelab: 1`. /ui/ relays to the FrameLab UI on the signed-in judge's own VM, through
+ * the agent that VM connects to /agent with a token only it holds.
  */
 const PAGE = path.join(import.meta.dir, "page.html");
 const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -55,6 +57,8 @@ function readCookie(req: Request, name: string): string | undefined {
 }
 
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+const MAX_UI_BODY = 1024 * 1024;
 
 /** A sliding one-minute window per client address. */
 function rateLimiter(perMinute: number) {
@@ -131,6 +135,9 @@ export function serveLab(port: number, cfg: LabServerConfig) {
   const signInReady = cfg.clientId !== NOT_CONFIGURED && cfg.clientSecret !== NOT_CONFIGURED;
   const general = rateLimiter(120);
   const creates = rateLimiter(4);
+  // The FrameLab UI polls every second while a run is going.
+  const uiCalls = rateLimiter(600);
+  const tunnel = new Tunnel();
   const exclusive = serial();
   const vms = cached(10_000, () => listJudgeVms(cfg.azure));
   const today = cached(30_000, () => sessionsOn(new Date()));
@@ -160,7 +167,7 @@ export function serveLab(port: number, cfg: LabServerConfig) {
     if (!s) return { ...base, signedIn: false };
     const mine = list.find((v) => v.githubId === String(s.id));
     const vm = mine
-      ? { name: mine.name, state: await setupState(mine), ip: await publicIp(cfg.azure, mine.name), expiresAt: mine.expiresAt, createdAt: mine.createdAt }
+      ? { name: mine.name, state: await setupState(mine), ip: await publicIp(cfg.azure, mine.name), expiresAt: mine.expiresAt, createdAt: mine.createdAt, ui: tunnel.connected(mine.name) }
       : null;
     const why = mine ? null : refusal({ githubId: s.id, accountCreatedAt: s.createdAt, now: new Date(), vms: list, today: await today.get(), limits: cfg.limits });
     return { ...base, signedIn: true, login: s.login, vm, refusal: why };
@@ -176,8 +183,10 @@ export function serveLab(port: number, cfg: LabServerConfig) {
       if (!keys.length) throw new HttpError(422, "no-keys", "Your GitHub account has no SSH keys. Add one at github.com/settings/keys, then try again.");
       const name = vmName(s.login);
       const expiresAt = new Date(Date.now() + cfg.limits.lifetimeMinutes * 60_000);
-      const customData = judgeCloudInit({ keys, expiresAt, repo: cfg.repo, ref: cfg.ref });
-      const { ip } = await createJudgeVm(cfg.azure, { name, login: s.login, githubId: s.id, customData, expiresAt });
+      const token = randomBytes(32).toString("base64url");
+      const agent = { url: `wss://${canonical}/agent`, token, vm: name };
+      const customData = judgeCloudInit({ keys, expiresAt, repo: cfg.repo, ref: cfg.ref, agent });
+      const { ip } = await createJudgeVm(cfg.azure, { name, login: s.login, githubId: s.id, customData, expiresAt, agentHash: sha256(token) });
       console.log(`lab: started ${name} for ${s.login} (${keys.length} key(s)), expires ${expiresAt.toISOString()}`);
       await recordSession({ vm: name, login: s.login, githubId: s.id, createdAt: new Date().toISOString() }).catch((e) => console.error(`lab: session not recorded: ${e.message}`));
       await vms.get(true);
@@ -191,14 +200,52 @@ export function serveLab(port: number, cfg: LabServerConfig) {
       const mine = (await vms.get(true)).find((v) => v.githubId === String(s.id));
       if (!mine) throw new HttpError(404, "no-vm", "You have no VM.");
       await deleteJudgeVm(cfg.azure, mine.name);
+      tunnel.drop(mine.name);
       console.log(`lab: ${s.login} deleted ${mine.name}`);
       await vms.get(true);
     });
   }
 
-  const server = Bun.serve({
+  const toLab = () => new Response(null, { status: 302, headers: { location: "/", ...SECURITY } });
+
+  /** /ui/<path> on the lab is <path> on the FrameLab UI of the signed-in judge's own VM. */
+  async function relay(req: Request, url: URL, s: Session | null): Promise<Response> {
+    if (!s) return req.method === "GET" ? toLab() : json({ error: "Connect GitHub first." }, 401);
+    const write = req.method !== "GET" && req.method !== "HEAD";
+    if (write && (req.headers.get("origin") !== `https://${req.headers.get("host")}` || req.headers.get("x-framelab") !== "1")) {
+      return json({ error: "cross-site request refused" }, 403);
+    }
+    if (!uiCalls(String(s.id))) return json({ error: "too many requests" }, 429, { "retry-after": "10" });
+    const mine = (await vms.get()).find((v) => v.githubId === String(s.id));
+    if (!mine || !tunnel.connected(mine.name)) {
+      return url.pathname === "/ui/" && req.method === "GET" ? toLab() : json({ error: "Your VM's FrameLab UI is not connected yet." }, 503);
+    }
+    const body = write ? new Uint8Array(await req.arrayBuffer()) : undefined;
+    if (body && body.length > MAX_UI_BODY) return json({ error: "request too large" }, 413);
+    try {
+      const res = await tunnel.request(mine.name, { method: req.method, path: url.pathname.slice(3) + url.search, headers: req.headers, body });
+      for (const [k, v] of Object.entries(SECURITY)) res.headers.set(k, v);
+      return res;
+    } catch (e) {
+      if (e instanceof TunnelError) return json({ error: e.message }, e.status);
+      throw e;
+    }
+  }
+
+  const server = Bun.serve<AgentData>({
     hostname: "0.0.0.0",
     port,
+    websocket: {
+      idleTimeout: 60,
+      sendPings: true,
+      maxPayloadLength: 1024 * 1024,
+      open: (ws) => tunnel.open(ws),
+      message: (ws, m) => tunnel.message(ws, m),
+      close: (ws, code) => {
+        tunnel.close(ws);
+        console.log(`lab: relay down for ${ws.data.vm} (${code})`);
+      },
+    },
     async fetch(req, srv) {
       const url = new URL(req.url);
       if (url.pathname === "/healthz") return new Response("ok");
@@ -207,11 +254,30 @@ export function serveLab(port: number, cfg: LabServerConfig) {
       if (host !== canonical && req.method === "GET" && (url.pathname === "/" || url.pathname === "/auth/login")) {
         return new Response(null, { status: 302, headers: { location: `https://${canonical}${url.pathname}`, ...SECURITY } });
       }
+      const session = readSession(readCookie(req, SESSION_COOKIE), cfg.sessionKey);
+      if (url.pathname === "/ui") return new Response(null, { status: 302, headers: { location: "/ui/", ...SECURITY } });
+      if (url.pathname.startsWith("/ui/")) {
+        return relay(req, url, session).catch((err) => {
+          console.error(`lab: relay ${req.method} ${url.pathname}: ${(err as Error).message}`);
+          return json({ error: "Something went wrong on our side. Try again in a minute.", code: "internal" }, 500);
+        });
+      }
       // The ingress appends the real client address; anything before it came from the client.
       const client = (req.headers.get("x-forwarded-for") ?? srv.requestIP(req)?.address ?? "?").split(",").at(-1)!.trim();
       if (!general(client)) return json({ error: "too many requests" }, 429, { "retry-after": "60" });
-      const session = readSession(readCookie(req, SESSION_COOKIE), cfg.sessionKey);
       try {
+        if (url.pathname === "/agent") {
+          const name = req.headers.get("x-framelab-vm") ?? "";
+          const presented = (req.headers.get("authorization") ?? "").replace(/^Bearer /, "");
+          if (!/^judge-[a-z0-9-]{1,60}$/.test(name) || !/^[A-Za-z0-9_-]{43}$/.test(presented)) return new Response("unauthorized", { status: 401 });
+          const vm = (await vms.get()).find((v) => v.name === name);
+          if (!vm || !vm.agentHash || vm.state === "Deleting" || !same(sha256(presented), vm.agentHash)) return new Response("unauthorized", { status: 401 });
+          if (srv.upgrade(req, { data: { vm: name } })) {
+            console.log(`lab: relay up for ${name}`);
+            return undefined;
+          }
+          return new Response("expected a WebSocket upgrade", { status: 426 });
+        }
         if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
           return new Response(Bun.file(PAGE), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", ...SECURITY } });
         }

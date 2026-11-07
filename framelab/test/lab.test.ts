@@ -1,4 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
+import { readFile } from "node:fs/promises";
+import { runAgent } from "../src/lab/agent.ts";
 import type { JudgeVm, LabConfig } from "../src/lab/azure.ts";
 import { unusableRsaKey, vmName } from "../src/lab/azure.ts";
 import { FAILED_MARK, READY_MARK, judgeCloudInit, sshKeys } from "../src/lab/cloud-init.ts";
@@ -6,6 +8,7 @@ import { limitsFromEnv, readSession, refusal, signSession, type Session } from "
 import { expired, owner } from "../src/lab/reap.ts";
 import { NOT_CONFIGURED, serveLab } from "../src/lab/server.ts";
 import type { SessionRow } from "../src/lab/sessions.ts";
+import { Tunnel, type AgentData } from "../src/lab/tunnel.ts";
 
 const ED = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGq0yW3Qkq4oF0xRr2Wl1t5eJpL6iN0d3o2u7x1n7Zk";
 const limits = limitsFromEnv({});
@@ -18,8 +21,10 @@ const vm = (githubId: string, over: Partial<JudgeVm> = {}): JudgeVm => ({
   createdAt: "2026-11-06T11:00:00Z",
   expiresAt: "2026-11-06T14:00:00Z",
   state: "Succeeded",
+  agentHash: "",
   ...over,
 });
+const relay = { url: "wss://lab.example.test/agent", token: "t".repeat(43), vm: "judge-x-1" };
 const row = (githubId: number): SessionRow => ({ vm: "judge-x", login: `u${githubId}`, githubId, createdAt: "2026-11-06T09:00:00Z" });
 const ask = (o: Partial<Parameters<typeof refusal>[0]> = {}) =>
   refusal({ githubId: 7, accountCreatedAt: old, now, vms: [], today: [], limits, ...o });
@@ -74,22 +79,33 @@ test("only bare SSH public keys from <login>.keys are used, at most 10", () => {
   expect(sshKeys("")).toEqual([]);
 });
 
-test("cloud-init is valid YAML that installs the judge's keys and reports on the serial console", () => {
+test("cloud-init is valid YAML that installs the judge's keys, the UI and its relay, and reports on the serial console", async () => {
   const expiresAt = new Date(Date.now() + 180 * 60_000);
-  const text = judgeCloudInit({ keys: [ED], expiresAt, repo: "https://github.com/batmnnn/batcorp.git", ref: "main" });
+  const text = judgeCloudInit({ keys: [ED], expiresAt, repo: "https://github.com/batmnnn/batcorp.git", ref: "main", agent: relay });
   expect(text.startsWith("#cloud-config\n")).toBe(true);
-  const doc = Bun.YAML.parse(text) as { write_files: Array<{ path: string; content: string; append?: boolean; defer?: boolean }>; runcmd: unknown[][] };
+  const doc = Bun.YAML.parse(text) as { write_files: Array<{ path: string; content: string; permissions: string; append?: boolean; defer?: boolean }>; runcmd: unknown[][] };
   const files = Object.fromEntries(doc.write_files.map((f) => [f.path, f]));
   expect(files["/home/judge/.ssh/authorized_keys"]).toMatchObject({ content: `${ED}\n`, append: true, defer: true });
   expect(files["/usr/local/bin/framelab-setup"]!.content).toContain('git clone --depth 1 --branch "main" "https://github.com/batmnnn/batcorp.git"');
   expect(files["/etc/motd"]!.content).toContain(expiresAt.toISOString().slice(0, 16));
+  expect(files["/etc/framelab/agent.env"]).toMatchObject({ permissions: "0600", content: `LAB_AGENT_URL=${relay.url}\nLAB_AGENT_TOKEN=${relay.token}\nLAB_VM_NAME=${relay.vm}\n` });
+  expect(files["/opt/framelab/agent.ts"]!.content).toBe(await readFile(new URL("../src/lab/agent.ts", import.meta.url), "utf8"));
+  expect(files["/etc/systemd/system/framelab-ui.service"]!.content).toContain("ExecStart=/home/judge/.bun/bin/bun src/cli.ts serve --port 4173");
+  expect(files["/etc/systemd/system/framelab-agent.service"]!.content).toContain("EnvironmentFile=/etc/framelab/agent.env");
   expect(doc.runcmd[0]).toEqual(["shutdown", "-h", "+190", "FrameLab judge VM: time is up"]);
-  expect(JSON.stringify(doc.runcmd.at(-1))).toContain(READY_MARK);
-  expect(JSON.stringify(doc.runcmd.at(-1))).toContain(FAILED_MARK);
+  const last = JSON.stringify(doc.runcmd.at(-1));
+  expect(last).toContain("systemctl enable --now framelab-ui.service framelab-agent.service");
+  expect(last).toContain(READY_MARK);
+  expect(last).toContain(FAILED_MARK);
 });
 
-test("cloud-init refuses keys, repositories and refs that could inject into it", () => {
-  const ok = { keys: [ED], expiresAt: new Date(), repo: "https://github.com/batmnnn/batcorp.git", ref: "main" };
+test("cloud-init refuses keys, repositories, refs and relay settings that could inject into it", () => {
+  const ok = { keys: [ED], expiresAt: new Date(), repo: "https://github.com/batmnnn/batcorp.git", ref: "main", agent: relay };
+  expect(() => judgeCloudInit(ok)).not.toThrow();
+  expect(() => judgeCloudInit({ ...ok, agent: { ...relay, url: "ws://lab.example.test/agent" } })).toThrow();
+  expect(() => judgeCloudInit({ ...ok, agent: { ...relay, token: "short" } })).toThrow();
+  expect(() => judgeCloudInit({ ...ok, agent: { ...relay, token: `${"t".repeat(40)}\nX=1` } })).toThrow();
+  expect(() => judgeCloudInit({ ...ok, agent: { ...relay, vm: "Judge X" } })).toThrow();
   expect(() => judgeCloudInit({ ...ok, keys: [] })).toThrow();
   expect(() => judgeCloudInit({ ...ok, keys: [`${ED}\nruncmd: [reboot]`] })).toThrow();
   expect(() => judgeCloudInit({ ...ok, repo: "https://evil.example/x.git" })).toThrow();
@@ -118,6 +134,54 @@ test("the reaper deletes past expiry, falls back to age, and knows which NIC, IP
   expect(owner("judge-a-111111-ip", names)).toBe("judge-a-111111");
   expect(owner("judge-a-111111_OsDisk_1_abc", names)).toBe("judge-a-111111");
   expect(owner("judge-a-222222-nic", names)).toBeUndefined();
+});
+
+test("the relay carries requests to the VM's UI and back, without cookies, and only to that UI", async () => {
+  const upstream = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch(req) {
+      const u = new URL(req.url);
+      if (u.pathname === "/") return new Response("<p>ui</p>", { headers: { "content-type": "text/html", "set-cookie": "x=1" } });
+      if (u.pathname === "/api/state") return Response.json({ host: req.headers.get("host"), cookie: req.headers.get("cookie"), xf: req.headers.get("x-framelab"), q: u.search });
+      if (u.pathname === "/api/echo" && req.method === "POST") return new Response(req.body, { headers: { "content-type": "application/json" } });
+      if (u.pathname === "/api/download") return new Response(new Uint8Array(1_500_000).fill(7), { headers: { "content-type": "application/gzip" } });
+      return new Response("not found", { status: 404 });
+    },
+  });
+  const tunnel = new Tunnel();
+  const hub = Bun.serve<AgentData>({
+    hostname: "127.0.0.1",
+    port: 0,
+    websocket: { open: (ws) => tunnel.open(ws), message: (ws, m) => tunnel.message(ws, m), close: (ws) => tunnel.close(ws) },
+    fetch(req, srv) {
+      if (req.headers.get("authorization") !== "Bearer tok") return new Response("unauthorized", { status: 401 });
+      return srv.upgrade(req, { data: { vm: req.headers.get("x-framelab-vm")! } }) ? undefined : new Response("upgrade", { status: 426 });
+    },
+  });
+  const agent = runAgent({ url: `ws://127.0.0.1:${hub.port}/agent`, token: "tok", vm: "judge-a", ui: `http://127.0.0.1:${upstream.port}` });
+  for (let i = 0; i < 100 && !tunnel.connected("judge-a"); i++) await Bun.sleep(20);
+  expect(tunnel.connected("judge-a")).toBe(true);
+  const ask = (method: string, p: string, headers: Record<string, string> = {}, body?: Uint8Array) => tunnel.request("judge-a", { method, path: p, headers: new Headers(headers), body });
+
+  const page = await ask("GET", "/");
+  expect(page.status).toBe(200);
+  expect(await page.text()).toBe("<p>ui</p>");
+  expect(page.headers.get("set-cookie")).toBeNull();
+  expect(await (await ask("GET", "/api/state?b=x", { cookie: "__Host-fl_lab=secret", "x-framelab": "1" })).json()).toEqual({ host: `127.0.0.1:${upstream.port}`, cookie: null, xf: "1", q: "?b=x" });
+  expect(await (await ask("POST", "/api/echo", { "content-type": "application/json" }, new TextEncoder().encode('{"a":1}'))).text()).toBe('{"a":1}');
+  const download = new Uint8Array(await (await ask("GET", "/api/download")).arrayBuffer());
+  expect(download.length).toBe(1_500_000);
+  expect(download.every((b) => b === 7)).toBe(true);
+  expect((await ask("GET", "/missing")).status).toBe(404);
+  for (const p of ["//evil.example/x", "http://evil.example/", "relative"]) await expect(ask("GET", p)).rejects.toMatchObject({ status: 502 });
+  await expect(tunnel.request("judge-b", { method: "GET", path: "/", headers: new Headers() })).rejects.toMatchObject({ status: 503 });
+
+  agent.stop();
+  for (let i = 0; i < 100 && tunnel.connected("judge-a"); i++) await Bun.sleep(20);
+  expect(tunnel.connected("judge-a")).toBe(false);
+  hub.stop(true);
+  upstream.stop(true);
 });
 
 const port = 20000 + Math.floor(Math.random() * 2000);
@@ -183,6 +247,24 @@ test("writes need the same origin, the header and a session", async () => {
   expect((await post("/api/vm/delete", { origin: `https://${canonical}`, "x-framelab": "1" })).status).toBe(401);
   const forged = `${Buffer.from(JSON.stringify({ login: "x", id: 1, createdAt: old, exp: Date.now() + 60_000 })).toString("base64url")}.AAAA`;
   expect((await post("/api/vm", { origin: `https://${canonical}`, "x-framelab": "1", cookie: `__Host-fl_lab=${forged}` })).status).toBe(401);
+});
+
+test("/ui/ needs a session, and writes through it need the same origin and the header", async () => {
+  const s = signSession({ login: "judge", id: 42, createdAt: old, exp: Date.now() + 60_000 }, cfg.sessionKey);
+  expect((await hit("/ui")).headers.get("location")).toBe("/ui/");
+  const out = await hit("/ui/");
+  expect(out.status).toBe(302);
+  expect(out.headers.get("location")).toBe("/");
+  expect((await hit("/ui/api/run", { method: "POST", headers: { origin: `https://${canonical}`, "x-framelab": "1" } })).status).toBe(401);
+  for (const headers of [{ origin: "https://evil.test", "x-framelab": "1" }, { origin: `https://${canonical}` }] as Record<string, string>[]) {
+    expect((await hit("/ui/api/run", { method: "POST", headers: { ...headers, cookie: `__Host-fl_lab=${s}` } })).status).toBe(403);
+  }
+});
+
+test("a relay agent without a well-formed VM name and token is refused before any lookup", async () => {
+  for (const headers of [{}, { "x-framelab-vm": "judge-a-1", authorization: "Bearer short" }, { "x-framelab-vm": "../x", authorization: `Bearer ${"a".repeat(43)}` }] as Record<string, string>[]) {
+    expect((await hit("/agent", { headers })).status).toBe(401);
+  }
 });
 
 test("until the OAuth app is connected, sign-in says so instead of failing at GitHub", async () => {

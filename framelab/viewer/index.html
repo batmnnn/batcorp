@@ -618,7 +618,7 @@ function copyBtn(text, what) {
   } }, icon("copy"));
 }
 const bundleName = (dir) => dir.split("/").pop();
-const downloadUrl = (dir) => `/api/download?dir=${encodeURIComponent(dir)}`;
+const downloadUrl = (dir) => `api/download?dir=${encodeURIComponent(dir)}`;
 /** Keeps the address bar on the open result, so the URL is its share link. */
 function setLink(dir) {
   try { history.replaceState(null, "", dir ? `?b=${dir.split("/").map(encodeURIComponent).join("/")}` : location.pathname); } catch { /* file: pages cannot rewrite their URL */ }
@@ -649,6 +649,7 @@ const checkRow = (ok, title, sub, n) => h("div", { class: "checkrow" },
   h("span", { class: "n" }, n, h("span", { class: "faint small" }, ok ? " ok" : " mismatch")));
 
 // ---------- server API ----------
+// Paths are relative so the same page works at / and behind the judge lab's /ui/.
 async function api(method, url, body) {
   const res = await fetch(url, { method, headers: method === "POST" ? { "content-type": "application/json", "x-framelab": "1" } : {}, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
@@ -673,7 +674,7 @@ function buildModel(files, dir, kind) {
 }
 async function openDir(dir) {
   try {
-    const v = await api("GET", `/api/view?dir=${encodeURIComponent(dir)}`);
+    const v = await api("GET", `api/view?dir=${encodeURIComponent(dir)}`);
     setView(buildModel(v.files, v.dir, v.kind));
     setLink(v.dir);
   } catch (err) { ui.notice = { kind: "error", text: `Could not open ${dir}: ${err.message}` }; }
@@ -1028,7 +1029,7 @@ function viewEmpty() {
     head,
     h("p", { class: "lede" }, lede),
     h("div", { class: "actions" },
-      server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "/api/env/start")) }, icon("power"), starting ? "Starting…" : "Start local network") : null,
+      server ? h("button", { class: "btn primary lg", disabled: starting, onclick: () => act("env", () => api("POST", "api/env/start")) }, icon("power"), starting ? "Starting…" : "Start local network") : null,
       folderPicker("lg")),
     env?.log?.length && (starting || failed) ? det("env-log", "Startup log", h("pre", { class: "log", "data-envlog": "" }, env.log.join("\n"))) : null,
     h("p", { class: "facts-line" }, hosted ? "Nothing runs here · local folders open without upload · replay.sh checks every file before it starts a node"
@@ -1060,7 +1061,7 @@ function viewReady() {
     return h("label", { class: "choice" }, h("input", { type: "radio", name: "scenario", value: f, "aria-label": name, checked: f === want ? true : null, onchange: () => { ui.lastScenario = f; } }), h("span", null, name));
   };
   const target = h("section", { class: "card", id: "stage-target" },
-    cardHead("Target", h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "/api/env/stop")) }, icon("stop"), "Stop network")),
+    cardHead("Target", h("button", { class: "btn", disabled: ui.pending, onclick: () => act("env-stop", () => api("POST", "api/env/stop")) }, icon("stop"), "Stop network")),
     titleRow(ok ? "pass" : "fail", ok ? "checkCircle" : "xCircle", ok ? "Ready" : "Not ready"),
     info.note ? h("p", { class: "faint small" }, info.note) : null,
     h("div", { class: "checkrows" },
@@ -1101,7 +1102,7 @@ function viewReady() {
         onclick: () => { ui.lastBuild = b.id; render(); } }, b.patches.length ? icon("flask") : null, b.label))),
     injectedPick ? banner("amber", "Local injected regression: this build carries ", h("code", null, build.patches.join(", ")), " on purpose. Its failures demonstrate FrameLab; they are not upstream bugs.") : null,
     h("div", { class: "actions" },
-      h("button", { class: "btn primary lg", disabled: ui.pending || !want, onclick: () => act("run", () => api("POST", "/api/run", { scenario: ui.lastScenario, build: wantBuild })) }, icon("play"), "Run scenario"),
+      h("button", { class: "btn primary lg", disabled: ui.pending || !want, onclick: () => act("run", () => api("POST", "api/run", { scenario: ui.lastScenario, build: wantBuild })) }, icon("play"), "Run scenario"),
       h("span", { class: "faint small" }, "Runs twice. Stops this probe stack first; each run starts its own.")));
   return [h("div", { class: "split" }, target, scenario),
     h("section", { class: "card" }, det("ready-results", h("h3", null, "Open a saved result"), resultsList(s.results)))];
@@ -1207,7 +1208,7 @@ function viewRunning() {
         h("h2", { class: "mono" }, start?.scenario ?? job.label),
         start ? h("span", { class: "faint small mono" }, `node build ${start.build}`) : null),
       h("span", { class: "clock", title: "Elapsed", "data-since": job.started }, mmss(Date.now() - job.started)),
-      h("button", { class: "btn", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), cancelling ? "Cancelling…" : "Cancel")),
+      h("button", { class: "btn", disabled: cancelling, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "api/cancel")); } }, icon("stop"), cancelling ? "Cancelling…" : "Cancel")),
     h("p", { class: "muted" }, cancelling ? "Cancelling. It stops before the next step, and the result will be inconclusive, not green."
       : shrink ? `Before deleting anything, the original ${job.label} has to fail the same way on two fresh stacks.`
       : "Each run gets its own fresh ethrex container and sidecar. A failure only counts if both runs agree."),
@@ -1246,7 +1247,7 @@ function viewShrinking() {
   return [h("section", { class: "card", id: "stage-shrink" },
     cardHead(titleRow("accent", "live", stopping ? "Stopping" : "Shrinking"),
       h("span", { class: "faint small mono" }, job.label),
-      h("button", { class: "btn", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "/api/cancel")); } }, icon("stop"), stopping ? "Stopping after this candidate…" : "Stop and keep best")),
+      h("button", { class: "btn", disabled: stopping, onclick: () => { ui.cancelRequested = job.dir; act("cancel", () => api("POST", "api/cancel")); } }, icon("stop"), stopping ? "Stopping after this candidate…" : "Stop and keep best")),
     h("p", { class: "muted" }, stopping ? "The current candidate finishes, then the best confirmed case is kept. No half-tested candidate is exported."
       : "Deleting steps while the failure stays exactly this one, frozen:"),
     h("p", { class: "target-line" }, h("b", null, t.assertion_id), pill(t.verdict), h("span", { class: "mono faint" }, `${t.tx_role} · ${t.rule_ref} · ${t.checkpoint_id}`)),
@@ -1455,7 +1456,7 @@ function viewResult(state) {
   const m = ui.view;
   const f = resultFacts(m), v = f.v;
   const exportBtn = (primary) => h("button", { class: `btn${primary ? " primary" : ""}`, disabled: !f.canExport || ui.pending, title: f.canExport ? null : m.kind === "bundle" ? "Already a bundle" : "Negative-path, cancelled or local-folder results are not exported", onclick: () => act("export", async () => {
-    const r = await api("POST", "/api/export", { dir: m.dir });
+    const r = await api("POST", "api/export", { dir: m.dir });
     if (!r.ok) throw new Error(r.output.join(" · "));
     ui.notice = { kind: "info", text: `Bundle written to ${r.bundle}. Replay it without the UI: FRAMELAB=/path/to/framelab ${r.bundle}/replay.sh` };
     await openDir(r.bundle);
@@ -1485,7 +1486,7 @@ function viewResult(state) {
     body = [f.first?.reasons.some((r) => r.startsWith("wrong test expectation")) ? banner("grey", "Labelled a wrong test expectation: the fixture flips this expectation on purpose. Not a node bug.")
       : h("p", { class: "faint small" }, "A mismatch means the observed fate differs from the written expectation under the cited rule. On its own it does not show a node bug."),
       why ? h("p", { class: "muted small" }, why) : null];
-    primary = [h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "/api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"), downloadBtn(false) || exportBtn(false)];
+    primary = [h("button", { class: "btn primary", disabled: Boolean(why) || ui.pending || ui.server?.job?.running, onclick: () => act("shrink", () => api("POST", "api/shrink", { dir: m.dir })) }, icon("shrink"), "Shrink"), downloadBtn(false) || exportBtn(false)];
   } else {
     sentence = f.na ? "Not applicable to this target, so no node was started and nothing was judged." : `${plural(f.facts.length, "missing fact")}. An inconclusive result is never counted as green.`;
     body = [h("h4", null, "Missing facts"), h("ul", { class: "facts missing" }, f.facts.slice(0, 12).map((x) => h("li", null, x))), f.facts.length > 12 ? h("p", { class: "faint small" }, `${f.facts.length - 12} more in the raw evidence.`) : null];
@@ -1651,7 +1652,7 @@ async function poll(once) {
   if (ui.mode === "file") { render(); return; }
   let changed = once;
   try {
-    const s = await api("GET", "/api/state");
+    const s = await api("GET", "api/state");
     if (s.mode === "hosted") ui.mode = "hosted";
     const sig = JSON.stringify({ ...s, job: s.job ? { ...s.job, log: undefined } : null });
     const pre = document.querySelector("pre[data-joblog]");

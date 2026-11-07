@@ -136,10 +136,15 @@ all.
 ## A VM of your own
 
 <https://lab.batcorps.batmnnn.live/> gives anyone with a GitHub account a fresh Linux VM
-(4 vCPU, 16 GB) with FrameLab set up from `main`, for 3 hours. You log in with the SSH keys
-on your GitHub account, `ssh judge@ADDRESS`, and run the replays above or `bun src/cli.ts serve`
-through `ssh -L 4173:127.0.0.1:4173`. Sign-in asks GitHub for no scopes; the token is used once
-to read your account and then revoked.
+(4 vCPU, 16 GB) with FrameLab set up from `main`, for 3 hours. Open FrameLab on the lab page
+runs the full UI from that VM in your browser: start the local network, run scenarios, shrink
+and export. Or log in with the SSH keys on your GitHub account, `ssh judge@ADDRESS`, and run the
+replays above. Sign-in asks GitHub for no scopes; the token is used once to read your account
+and then revoked.
+
+The VM accepts no connection but SSH. A relay agent on it dials out to the lab, which serves
+`/ui/` only to the GitHub account that owns the VM; the agent's token is the VM's alone, and the
+lab keeps only its hash.
 
 Limits: 3 VMs at a time, one per account, 2 per account and 12 in all per UTC day, and accounts
 must be at least 30 days old. A VM takes inbound SSH only, can reach only TCP 80 and 443, and

@@ -184,9 +184,13 @@ function haveVm() {
         h("dt", null, "Deleted at"), h("dd", null, `${utc(vm.expiresAt)}, in ${left(vm.expiresAt)}`),
         h("dt", null, "Name"), h("dd", null, vm.name)),
       h("div", { class: "actions" },
-        h("button", { class: "btn ghost", type: "button", disabled: busy || vm.state === "deleting", onclick: () => act("/api/vm/delete", "Delete your VM now? Anything on it is lost.") }, "Delete my VM now"))),
+        vm.state === "ready" && vm.ui
+          ? h("a", { class: "btn primary lg", href: "/ui/", target: "_blank", rel: "noopener" }, "Open FrameLab")
+          : h("button", { class: "btn primary lg", type: "button", disabled: true }, vm.state === "ready" ? "Connecting the UI…" : "Open FrameLab"),
+        h("button", { class: "btn ghost", type: "button", disabled: busy || vm.state === "deleting", onclick: () => act("/api/vm/delete", "Delete your VM now? Anything on it is lost.") }, "Delete my VM now")),
+      vm.state === "ready" || vm.state === "setting-up" ? h("p", { class: "facts-line" }, "Open FrameLab runs the same UI as on your own machine, live on this VM: start the local network, run scenarios, shrink a failure and export the bundle.") : null),
     up ? h("section", { class: "card" },
-      h("h3", null, "On your machine"),
+      h("h3", null, "Or use a terminal"),
       h("ol", { class: "steps" },
         h("li", null, h("p", { class: "muted small" }, "Log in. SSH asks you to trust the VM's host key the first time."), cmd(`ssh judge@${ip}`)),
         vm.state !== "ready" ? h("li", null, h("p", { class: "muted small" }, "On the VM, wait for setup to finish:"), cmd("framelab-status")) : null,
@@ -196,10 +200,8 @@ function haveVm() {
           cmd("FRAMELAB=$PWD evidence/v0.1-rc/injected-s1-reduced/replay.sh", "exit 1, as recorded"),
           h("div", { style: "height:6px" }),
           cmd("FRAMELAB=$PWD evidence/v0.1-rc/s1-pass/replay.sh", "exit 0")),
-        h("li", null, h("p", { class: "muted small" }, "For the UI, connect with a tunnel, start it on the VM, then open http://127.0.0.1:4173 on your machine:"),
-          cmd(`ssh -L 4173:127.0.0.1:4173 judge@${ip}`),
-          h("div", { style: "height:6px" }),
-          cmd("cd ~/batcorp/framelab && bun src/cli.ts serve"))),
+        h("li", null, h("p", { class: "muted small" }, "The UI also answers through an SSH tunnel: connect like this, then open http://127.0.0.1:4173 on your machine."),
+          cmd(`ssh -L 4173:127.0.0.1:4173 judge@${ip}`))),
       h("p", { class: "facts-line" }, "Exit codes: 0 a clean pass, 1 a confirmed mismatch, 2 anything incomplete. The injected bug is a local test patch, not an upstream bug.")) : null,
   ];
 }
@@ -223,7 +225,7 @@ async function load() {
     if (!me) document.getElementById("main").replaceChildren(h("section", { class: "card" }, h("p", { class: "muted" }, "The lab is not answering. Try again in a minute.")));
   }
   render();
-  const fast = me && me.vm && ["creating", "setting-up", "deleting"].includes(me.vm.state);
+  const fast = me && me.vm && (["creating", "setting-up", "deleting"].includes(me.vm.state) || !me.vm.ui);
   timer = setTimeout(load, fast ? 10000 : 60000);
 }
 load();
